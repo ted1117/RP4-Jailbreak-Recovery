@@ -80,10 +80,20 @@ class RootStateCheckerTest {
                 0,
                 """
                     ROOT_UID=0
+                    ADB_DIAG_TIMESTAMP=12345
+                    BEFORE_ADB_ENABLED=0
+                    BEFORE_ADBD_STATE=stopped
                     ADB_SETTINGS_EXIT=0
+                    ADB_SETTINGS_OUTPUT=
                     ADB_DAEMON_EXIT=0
+                    ADB_DAEMON_OUTPUT=
+                    AFTER_ADB_ENABLED=1
+                    AFTER_ADBD_STATE=running
+                    AFTER_SYS_USB_CONFIG=mtp,adb
                     MODULE_LS_EXIT=1
                     MODULE_LS_OUTPUT=ls: disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
                 """.trimIndent(),
                 "",
             ),
@@ -94,7 +104,170 @@ class RootStateCheckerTest {
         assertTrue(result.hasRootAccess)
         assertTrue(result.adbEnabled)
         assertEquals(LsposedModuleState.ENABLED, result.moduleState)
+        assertEquals(ZygiskState.ENABLED, result.zygiskState)
+        assertTrue(result.adbDiagnostics.contains("BEFORE_ADBD_STATE=stopped"))
+        assertTrue(result.adbDiagnostics.contains("AFTER_ADBD_STATE=running"))
+        assertTrue(result.adbDiagnostics.contains("ROOT_COMMAND_EXIT=0"))
         assertEquals(1, runner.commands.size)
+        assertTrue(
+            runner.commands.single().contains(
+                RootStateChecker.ENABLE_ADB_SETTING_COMMAND,
+            ),
+        )
+        assertTrue(runner.commands.single().contains("key='zygisk'"))
+        assertTrue(runner.commands.single().contains("sleep 1"))
+    }
+
+    @Test
+    fun `successful ADB command exits do not count without verified final state`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    AFTER_ADB_ENABLED=1
+                    AFTER_ADBD_STATE=stopped
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertFalse(result.adbEnabled)
+        assertTrue(result.detail.contains("검증 adb_enabled=1, adbd=stopped"))
+    }
+
+    @Test
+    fun `boot actions report disabled when zygisk LSPosed disable exists`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    MODULE_LS_EXIT=0
+                    MODULE_LS_OUTPUT=/data/adb/modules/zygisk_lsposed/disable
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertTrue(result.hasRootAccess)
+        assertEquals(LsposedModuleState.DISABLED, result.moduleState)
+        assertEquals(1, runner.commands.size)
+        assertTrue(
+            runner.commands.single().contains(
+                "/system/bin/ls -d ${RootStateChecker.LSPOSED_DISABLE_PATH}",
+            ),
+        )
+    }
+
+    @Test
+    fun `boot actions report enabled when zygisk LSPosed disable is absent`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: /data/adb/modules/zygisk_lsposed/disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertTrue(result.hasRootAccess)
+        assertEquals(LsposedModuleState.ENABLED, result.moduleState)
+        assertEquals(ZygiskState.ENABLED, result.zygiskState)
+    }
+
+    @Test
+    fun `boot actions do not treat permission denial as an absent disable file`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: /data/adb/modules/zygisk_lsposed/disable: Permission denied
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertTrue(result.hasRootAccess)
+        assertEquals(LsposedModuleState.UNKNOWN, result.moduleState)
+    }
+
+    @Test
+    fun `boot actions detect disabled Zygisk independently of module marker`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=0
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertEquals(LsposedModuleState.ENABLED, result.moduleState)
+        assertEquals(ZygiskState.DISABLED, result.zygiskState)
+    }
+
+    @Test
+    fun `failed Zygisk query remains unknown`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=127
+                    ZYGISK_QUERY_OUTPUT=magisk: not found
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions()
+
+        assertEquals(ZygiskState.UNKNOWN, result.zygiskState)
     }
 
     private class FakeRootCommandRunner(

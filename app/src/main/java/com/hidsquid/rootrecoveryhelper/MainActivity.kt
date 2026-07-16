@@ -9,6 +9,7 @@ import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnosticsSnapshot
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
+import com.hidsquid.rootrecoveryhelper.root.ZygiskState
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.MainScope
@@ -70,10 +71,14 @@ class MainActivity : Activity() {
                     R.string.adb_test_mode_failed
                 },
             )
-            val moduleStatusResource = when (check.moduleState) {
-                LsposedModuleState.DISABLED -> R.string.module_state_disabled
-                LsposedModuleState.ENABLED -> R.string.module_state_normal
-                LsposedModuleState.UNKNOWN -> R.string.module_state_unknown
+            val moduleStatusResource = when {
+                check.moduleState == LsposedModuleState.DISABLED ||
+                    check.zygiskState == ZygiskState.DISABLED ->
+                    R.string.module_state_disabled
+                check.moduleState == LsposedModuleState.UNKNOWN ||
+                    check.zygiskState == ZygiskState.UNKNOWN ->
+                    R.string.module_state_unknown
+                else -> R.string.module_state_normal
             }
             moduleStatusText.setText(moduleStatusResource)
             renderBootDiagnostics()
@@ -94,6 +99,12 @@ class MainActivity : Activity() {
         val launchDescription = describeMainLaunch(snapshot)
         val stageDescription = describeCheckStage(snapshot.checkStage)
         val detail = snapshot.checkDetail.ifBlank {
+            getString(R.string.boot_diagnostics_detail_empty)
+        }
+        val adbDiagnostics = snapshot.adbDiagnostics.ifBlank {
+            getString(R.string.boot_diagnostics_detail_empty)
+        }
+        val adbDiagnosticsHistory = snapshot.adbDiagnosticsHistory.ifBlank {
             getString(R.string.boot_diagnostics_detail_empty)
         }
         val interpretation = buildString {
@@ -122,6 +133,8 @@ class MainActivity : Activity() {
             launchDescription,
             stageDescription,
             detail,
+            adbDiagnostics,
+            adbDiagnosticsHistory,
             interpretation,
         )
     }
@@ -192,6 +205,18 @@ class MainActivity : Activity() {
         )
         BootDiagnostics.STAGE_DELAYED_ADB_RESULT -> getString(
             R.string.boot_diagnostics_stage_delayed_adb_result,
+        )
+        BootDiagnostics.STAGE_AUTO_RECOVERY_LAUNCH -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_launch,
+        )
+        BootDiagnostics.STAGE_AUTO_RECOVERY_RUNNING -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_running,
+        )
+        BootDiagnostics.STAGE_AUTO_RECOVERY_RESULT -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_result,
+        )
+        BootDiagnostics.STAGE_AUTO_RECOVERY_REBOOT -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_reboot,
         )
         else -> getString(R.string.boot_diagnostics_stage_not_recorded)
     }

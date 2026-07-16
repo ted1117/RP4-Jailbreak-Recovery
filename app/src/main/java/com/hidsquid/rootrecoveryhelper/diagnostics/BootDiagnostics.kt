@@ -9,6 +9,8 @@ data class BootDiagnosticsSnapshot(
     val mainLaunchDetail: String,
     val checkStage: String,
     val checkDetail: String,
+    val adbDiagnostics: String,
+    val adbDiagnosticsHistory: String,
     val updatedAtMillis: Long,
 ) {
     val hasBootRecord: Boolean
@@ -29,6 +31,7 @@ class BootDiagnostics(context: Context) {
             .putString(KEY_MAIN_LAUNCH_DETAIL, "")
             .putString(KEY_CHECK_STAGE, STAGE_BOOT_RECEIVED)
             .putString(KEY_CHECK_DETAIL, "")
+            .putString(KEY_ADB_DIAGNOSTICS, "")
             .putLong(KEY_UPDATED_AT, now)
             .commit()
         Log.i(LOG_TAG, "BOOT_COMPLETED received; diagnosticsSaved=$saved")
@@ -40,20 +43,20 @@ class BootDiagnostics(context: Context) {
     }
 
     fun recordMainLaunchScheduled() {
-        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 ADB 실행 후 복구 안내 Dialog 확인 예정")
-        Log.i(LOG_TAG, "Recovery dialog check scheduled after delayed ADB activation")
+        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 LSPosed disable 상태 확인 예정")
+        Log.i(LOG_TAG, "LSPosed disable check scheduled after boot delay")
     }
 
     fun recordMainLaunchFailed(exception: RuntimeException) {
         val detail = exception.toDiagnosticDetail()
         updateMainLaunch(MAIN_LAUNCH_FAILED, detail)
-        Log.e(LOG_TAG, "Recovery dialog startActivity request failed: $detail")
+        Log.e(LOG_TAG, "Recovery screen startActivity request failed: $detail")
     }
 
     fun recordMainLaunchSkipped(detail: String) {
         val safeDetail = detail.take(MAX_DETAIL_LENGTH)
         updateMainLaunch(MAIN_LAUNCH_SKIPPED, safeDetail)
-        Log.i(LOG_TAG, "Recovery dialog launch skipped: $safeDetail")
+        Log.i(LOG_TAG, "Auto recovery launch skipped: $safeDetail")
     }
 
     fun recordCheckStage(stage: String, detail: String = "") {
@@ -66,6 +69,32 @@ class BootDiagnostics(context: Context) {
         Log.i(LOG_TAG, "checkStage=$stage; detail=$safeDetail; diagnosticsSaved=$saved")
     }
 
+    @Synchronized
+    fun recordAdbDiagnostics(detail: String) {
+        val safeDetail = detail.take(MAX_ADB_DIAGNOSTICS_LENGTH)
+        val now = System.currentTimeMillis()
+        val bootReceivedAtMillis = preferences.getLong(KEY_BOOT_RECEIVED_AT, 0L)
+        val history = AdbDiagnosticsHistory.append(
+            history = preferences.getString(KEY_ADB_DIAGNOSTICS_HISTORY, "").orEmpty(),
+            bootReceivedAtMillis = bootReceivedAtMillis,
+            recordedAtMillis = now,
+            diagnostics = safeDetail,
+        )
+        val saved = preferences.edit()
+            .putString(KEY_ADB_DIAGNOSTICS, safeDetail)
+            .putString(KEY_ADB_DIAGNOSTICS_HISTORY, history)
+            .putLong(KEY_UPDATED_AT, now)
+            .commit()
+        Log.i(
+            LOG_TAG,
+            "ADB_DIAGNOSTICS_BEGIN; boot=$bootReceivedAtMillis; diagnosticsSaved=$saved",
+        )
+        safeDetail.lineSequence().forEach { line ->
+            Log.i(LOG_TAG, "ADB_DIAG $line")
+        }
+        Log.i(LOG_TAG, "ADB_DIAGNOSTICS_END")
+    }
+
     fun snapshot(): BootDiagnosticsSnapshot = BootDiagnosticsSnapshot(
         bootReceivedAtMillis = preferences.getLong(KEY_BOOT_RECEIVED_AT, 0L),
         mainLaunchStatus = preferences.getString(
@@ -75,6 +104,11 @@ class BootDiagnostics(context: Context) {
         mainLaunchDetail = preferences.getString(KEY_MAIN_LAUNCH_DETAIL, "").orEmpty(),
         checkStage = preferences.getString(KEY_CHECK_STAGE, STAGE_NOT_RECORDED).orEmpty(),
         checkDetail = preferences.getString(KEY_CHECK_DETAIL, "").orEmpty(),
+        adbDiagnostics = preferences.getString(KEY_ADB_DIAGNOSTICS, "").orEmpty(),
+        adbDiagnosticsHistory = preferences.getString(
+            KEY_ADB_DIAGNOSTICS_HISTORY,
+            "",
+        ).orEmpty(),
         updatedAtMillis = preferences.getLong(KEY_UPDATED_AT, 0L),
     )
 
@@ -85,7 +119,7 @@ class BootDiagnostics(context: Context) {
             .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
             .commit()
         if (!saved) {
-            Log.e(LOG_TAG, "Failed to persist recovery dialog launch diagnostics")
+            Log.e(LOG_TAG, "Failed to persist recovery screen launch diagnostics")
         }
     }
 
@@ -120,6 +154,10 @@ class BootDiagnostics(context: Context) {
         const val STAGE_DELAYED_ADB_CHECKING_ROOT = "DELAYED_ADB_CHECKING_ROOT"
         const val STAGE_DELAYED_ADB_ROOT_UNAVAILABLE = "DELAYED_ADB_ROOT_UNAVAILABLE"
         const val STAGE_DELAYED_ADB_RESULT = "DELAYED_ADB_RESULT"
+        const val STAGE_AUTO_RECOVERY_LAUNCH = "AUTO_RECOVERY_LAUNCH"
+        const val STAGE_AUTO_RECOVERY_RUNNING = "AUTO_RECOVERY_RUNNING"
+        const val STAGE_AUTO_RECOVERY_RESULT = "AUTO_RECOVERY_RESULT"
+        const val STAGE_AUTO_RECOVERY_REBOOT = "AUTO_RECOVERY_REBOOT"
 
         private const val PREFERENCES_NAME = "boot_diagnostics"
         private const val KEY_BOOT_RECEIVED_AT = "boot_received_at"
@@ -127,7 +165,10 @@ class BootDiagnostics(context: Context) {
         private const val KEY_MAIN_LAUNCH_DETAIL = "main_launch_detail"
         private const val KEY_CHECK_STAGE = "check_stage"
         private const val KEY_CHECK_DETAIL = "check_detail"
+        private const val KEY_ADB_DIAGNOSTICS = "adb_diagnostics"
+        private const val KEY_ADB_DIAGNOSTICS_HISTORY = "adb_diagnostics_history"
         private const val KEY_UPDATED_AT = "updated_at"
         private const val MAX_DETAIL_LENGTH = 500
+        private const val MAX_ADB_DIAGNOSTICS_LENGTH = 4_000
     }
 }

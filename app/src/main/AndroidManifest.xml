@@ -12,6 +12,10 @@
         android:theme="@style/Theme.RootRecovery">
 
         <activity
+            android:name=".autorecovery.AutoRecoveryActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".recovery.LsposedSetupActivity"
             android:exported="false"
             android:theme="@style/Theme.RootRecovery.Dialog" />

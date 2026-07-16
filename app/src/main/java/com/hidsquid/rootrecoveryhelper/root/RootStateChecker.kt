@@ -6,10 +6,18 @@ enum class LsposedModuleState {
     UNKNOWN,
 }
 
+enum class ZygiskState {
+    DISABLED,
+    ENABLED,
+    UNKNOWN,
+}
+
 data class DelayedBootCheckResult(
     val hasRootAccess: Boolean,
     val adbEnabled: Boolean,
     val moduleState: LsposedModuleState,
+    val zygiskState: ZygiskState,
+    val adbDiagnostics: String,
     val detail: String,
 )
 
@@ -50,6 +58,8 @@ class RootStateChecker(
                 hasRootAccess = false,
                 adbEnabled = false,
                 moduleState = LsposedModuleState.UNKNOWN,
+                zygiskState = ZygiskState.UNKNOWN,
+                adbDiagnostics = buildAdbDiagnostics(result),
                 detail = "통합 root 명령 timeout",
             )
         }
@@ -61,28 +71,73 @@ class RootStateChecker(
                 hasRootAccess = false,
                 adbEnabled = false,
                 moduleState = LsposedModuleState.UNKNOWN,
+                zygiskState = ZygiskState.UNKNOWN,
+                adbDiagnostics = buildAdbDiagnostics(result),
                 detail = "uid=${rootUid ?: "확인 실패"}",
             )
         }
 
         val adbSettingsExit = result.stdout.markerValue(ADB_SETTINGS_EXIT_MARKER)
+        val adbSettingsOutput = result.stdout.markerValue(ADB_SETTINGS_OUTPUT_MARKER).orEmpty()
         val adbDaemonExit = result.stdout.markerValue(ADB_DAEMON_EXIT_MARKER)
+        val adbDaemonOutput = result.stdout.markerValue(ADB_DAEMON_OUTPUT_MARKER).orEmpty()
+        val afterAdbEnabled = result.stdout.markerValue(AFTER_ADB_ENABLED_MARKER)
+        val afterAdbdState = result.stdout.markerValue(AFTER_ADBD_STATE_MARKER)
         val moduleLsExit = result.stdout.markerValue(MODULE_LS_EXIT_MARKER)
         val moduleLsOutput = result.stdout.markerValue(MODULE_LS_OUTPUT_MARKER).orEmpty()
+        val zygiskQueryExit = result.stdout.markerValue(ZYGISK_QUERY_EXIT_MARKER)
+        val zygiskQueryOutput = result.stdout.markerValue(ZYGISK_QUERY_OUTPUT_MARKER).orEmpty()
         val moduleState = when {
             moduleLsExit == "0" -> LsposedModuleState.DISABLED
             moduleLsExit == "1" && moduleLsOutput.contains("No such file") ->
                 LsposedModuleState.ENABLED
             else -> LsposedModuleState.UNKNOWN
         }
+        val zygiskState = if (zygiskQueryExit == "0") {
+            zygiskQueryOutput.toZygiskState()
+        } else {
+            ZygiskState.UNKNOWN
+        }
 
         return DelayedBootCheckResult(
             hasRootAccess = true,
-            adbEnabled = adbSettingsExit == "0" && adbDaemonExit == "0",
+            adbEnabled = afterAdbEnabled == "1" && afterAdbdState == "running",
             moduleState = moduleState,
-            detail = "ADB settings exit=$adbSettingsExit, adbd exit=$adbDaemonExit, " +
-                "disable 검사 exit=$moduleLsExit${moduleLsOutput.takeIf { it.isNotBlank() }?.let { ", 출력=$it" } ?: ""}",
+            zygiskState = zygiskState,
+            adbDiagnostics = buildAdbDiagnostics(result),
+            detail = "ADB settings exit=$adbSettingsExit" +
+                adbSettingsOutput.takeIf { it.isNotBlank() }
+                    ?.let { ", 출력=$it" }
+                    .orEmpty() +
+                ", adbd exit=$adbDaemonExit" +
+                adbDaemonOutput.takeIf { it.isNotBlank() }
+                    ?.let { ", 출력=$it" }
+                    .orEmpty() +
+                ", 검증 adb_enabled=$afterAdbEnabled, adbd=$afterAdbdState, " +
+                "disable 검사 exit=$moduleLsExit" +
+                moduleLsOutput.takeIf { it.isNotBlank() }?.let { ", 출력=$it" }.orEmpty() +
+                ", Zygisk 검사 exit=$zygiskQueryExit" +
+                zygiskQueryOutput.takeIf { it.isNotBlank() }
+                    ?.let { ", 출력=$it" }
+                    .orEmpty(),
         )
+    }
+
+    private fun buildAdbDiagnostics(result: CommandResult): String = buildString {
+        ADB_DIAGNOSTIC_MARKERS.forEach { (label, marker) ->
+            append(label)
+            append('=')
+            append(result.stdout.markerValue(marker) ?: "기록 없음")
+            append('\n')
+        }
+        append("ROOT_COMMAND_EXIT=")
+        append(result.exitCode)
+        append('\n')
+        append("ROOT_COMMAND_TIMEOUT=")
+        append(result.timedOut)
+        append('\n')
+        append("ROOT_COMMAND_STDERR=")
+        append(result.stderr.ifBlank { "없음" }.replace('\n', ' '))
     }
 
     private val CommandResult.isSuccessful: Boolean
@@ -93,6 +148,12 @@ class RootStateChecker(
             .firstOrNull { it.startsWith("$marker=") }
             ?.substringAfter('=')
 
+    private fun String.toZygiskState(): ZygiskState = when {
+        this == "1" || contains("zygisk_enabled=1") -> ZygiskState.ENABLED
+        this == "0" || contains("zygisk_enabled=0") -> ZygiskState.DISABLED
+        else -> ZygiskState.UNKNOWN
+    }
+
     companion object {
         const val LSPOSED_DISABLE_PATH = "/data/adb/modules/zygisk_lsposed/disable"
 
@@ -102,10 +163,56 @@ class RootStateChecker(
 
         private const val ROOT_UID_MARKER = "ROOT_UID"
         private const val ADB_SETTINGS_EXIT_MARKER = "ADB_SETTINGS_EXIT"
+        private const val ADB_SETTINGS_OUTPUT_MARKER = "ADB_SETTINGS_OUTPUT"
         private const val ADB_DAEMON_EXIT_MARKER = "ADB_DAEMON_EXIT"
+        private const val ADB_DAEMON_OUTPUT_MARKER = "ADB_DAEMON_OUTPUT"
+        private const val ADB_DIAG_TIMESTAMP_MARKER = "ADB_DIAG_TIMESTAMP"
+        private const val BEFORE_ADB_ENABLED_MARKER = "BEFORE_ADB_ENABLED"
+        private const val BEFORE_DEVELOPMENT_SETTINGS_MARKER =
+            "BEFORE_DEVELOPMENT_SETTINGS"
+        private const val BEFORE_ADBD_STATE_MARKER = "BEFORE_ADBD_STATE"
+        private const val BEFORE_SYS_USB_CONFIG_MARKER = "BEFORE_SYS_USB_CONFIG"
+        private const val BEFORE_SYS_USB_STATE_MARKER = "BEFORE_SYS_USB_STATE"
+        private const val BEFORE_PERSIST_USB_CONFIG_MARKER = "BEFORE_PERSIST_USB_CONFIG"
+        private const val BEFORE_RO_ADB_SECURE_MARKER = "BEFORE_RO_ADB_SECURE"
+        private const val BEFORE_RO_DEBUGGABLE_MARKER = "BEFORE_RO_DEBUGGABLE"
+        private const val AFTER_ADB_ENABLED_MARKER = "AFTER_ADB_ENABLED"
+        private const val AFTER_DEVELOPMENT_SETTINGS_MARKER = "AFTER_DEVELOPMENT_SETTINGS"
+        private const val AFTER_ADBD_STATE_MARKER = "AFTER_ADBD_STATE"
+        private const val AFTER_SYS_USB_CONFIG_MARKER = "AFTER_SYS_USB_CONFIG"
+        private const val AFTER_SYS_USB_STATE_MARKER = "AFTER_SYS_USB_STATE"
+        private const val AFTER_PERSIST_USB_CONFIG_MARKER = "AFTER_PERSIST_USB_CONFIG"
+        private const val AFTER_RO_ADB_SECURE_MARKER = "AFTER_RO_ADB_SECURE"
+        private const val AFTER_RO_DEBUGGABLE_MARKER = "AFTER_RO_DEBUGGABLE"
         private const val MODULE_LS_EXIT_MARKER = "MODULE_LS_EXIT"
         private const val MODULE_LS_OUTPUT_MARKER = "MODULE_LS_OUTPUT"
+        private const val ZYGISK_QUERY_EXIT_MARKER = "ZYGISK_QUERY_EXIT"
+        private const val ZYGISK_QUERY_OUTPUT_MARKER = "ZYGISK_QUERY_OUTPUT"
         private const val ROOT_ID_OUTPUT = "uid=0(root)"
+
+        private val ADB_DIAGNOSTIC_MARKERS = listOf(
+            "TIMESTAMP" to ADB_DIAG_TIMESTAMP_MARKER,
+            "BEFORE_ADB_ENABLED" to BEFORE_ADB_ENABLED_MARKER,
+            "BEFORE_DEVELOPMENT_SETTINGS" to BEFORE_DEVELOPMENT_SETTINGS_MARKER,
+            "BEFORE_ADBD_STATE" to BEFORE_ADBD_STATE_MARKER,
+            "BEFORE_SYS_USB_CONFIG" to BEFORE_SYS_USB_CONFIG_MARKER,
+            "BEFORE_SYS_USB_STATE" to BEFORE_SYS_USB_STATE_MARKER,
+            "BEFORE_PERSIST_USB_CONFIG" to BEFORE_PERSIST_USB_CONFIG_MARKER,
+            "BEFORE_RO_ADB_SECURE" to BEFORE_RO_ADB_SECURE_MARKER,
+            "BEFORE_RO_DEBUGGABLE" to BEFORE_RO_DEBUGGABLE_MARKER,
+            "SETTINGS_EXIT" to ADB_SETTINGS_EXIT_MARKER,
+            "SETTINGS_OUTPUT" to ADB_SETTINGS_OUTPUT_MARKER,
+            "ADBD_START_EXIT" to ADB_DAEMON_EXIT_MARKER,
+            "ADBD_START_OUTPUT" to ADB_DAEMON_OUTPUT_MARKER,
+            "AFTER_ADB_ENABLED" to AFTER_ADB_ENABLED_MARKER,
+            "AFTER_DEVELOPMENT_SETTINGS" to AFTER_DEVELOPMENT_SETTINGS_MARKER,
+            "AFTER_ADBD_STATE" to AFTER_ADBD_STATE_MARKER,
+            "AFTER_SYS_USB_CONFIG" to AFTER_SYS_USB_CONFIG_MARKER,
+            "AFTER_SYS_USB_STATE" to AFTER_SYS_USB_STATE_MARKER,
+            "AFTER_PERSIST_USB_CONFIG" to AFTER_PERSIST_USB_CONFIG_MARKER,
+            "AFTER_RO_ADB_SECURE" to AFTER_RO_ADB_SECURE_MARKER,
+            "AFTER_RO_DEBUGGABLE" to AFTER_RO_DEBUGGABLE_MARKER,
+        )
 
         private val DELAYED_BOOT_COMMAND = """
             root_uid="${'$'}(id -u 2>/dev/null)"
@@ -114,14 +221,44 @@ class RootStateChecker(
                 echo "MODULE_LS_EXIT=UNKNOWN"
                 exit 20
             fi
-            settings put global adb_enabled 1
-            echo "ADB_SETTINGS_EXIT=${'$'}?"
-            setprop ctl.start adbd
-            echo "ADB_DAEMON_EXIT=${'$'}?"
+            echo "ADB_DIAG_TIMESTAMP=${'$'}(date +%s 2>/dev/null)"
+            echo "BEFORE_ADB_ENABLED=${'$'}(settings get global adb_enabled 2>&1)"
+            echo "BEFORE_DEVELOPMENT_SETTINGS=${'$'}(settings get global development_settings_enabled 2>&1)"
+            echo "BEFORE_ADBD_STATE=${'$'}(getprop init.svc.adbd 2>&1)"
+            echo "BEFORE_SYS_USB_CONFIG=${'$'}(getprop sys.usb.config 2>&1)"
+            echo "BEFORE_SYS_USB_STATE=${'$'}(getprop sys.usb.state 2>&1)"
+            echo "BEFORE_PERSIST_USB_CONFIG=${'$'}(getprop persist.sys.usb.config 2>&1)"
+            echo "BEFORE_RO_ADB_SECURE=${'$'}(getprop ro.adb.secure 2>&1)"
+            echo "BEFORE_RO_DEBUGGABLE=${'$'}(getprop ro.debuggable 2>&1)"
+
+            adb_settings_output="${'$'}(settings put global adb_enabled 1 2>&1)"
+            adb_settings_exit=${'$'}?
+            echo "ADB_SETTINGS_EXIT=${'$'}adb_settings_exit"
+            echo "ADB_SETTINGS_OUTPUT=${'$'}adb_settings_output"
+
+            adb_daemon_output="${'$'}(setprop ctl.start adbd 2>&1)"
+            adb_daemon_exit=${'$'}?
+            echo "ADB_DAEMON_EXIT=${'$'}adb_daemon_exit"
+            echo "ADB_DAEMON_OUTPUT=${'$'}adb_daemon_output"
+
+            sleep 1
+            echo "AFTER_ADB_ENABLED=${'$'}(settings get global adb_enabled 2>&1)"
+            echo "AFTER_DEVELOPMENT_SETTINGS=${'$'}(settings get global development_settings_enabled 2>&1)"
+            echo "AFTER_ADBD_STATE=${'$'}(getprop init.svc.adbd 2>&1)"
+            echo "AFTER_SYS_USB_CONFIG=${'$'}(getprop sys.usb.config 2>&1)"
+            echo "AFTER_SYS_USB_STATE=${'$'}(getprop sys.usb.state 2>&1)"
+            echo "AFTER_PERSIST_USB_CONFIG=${'$'}(getprop persist.sys.usb.config 2>&1)"
+            echo "AFTER_RO_ADB_SECURE=${'$'}(getprop ro.adb.secure 2>&1)"
+            echo "AFTER_RO_DEBUGGABLE=${'$'}(getprop ro.debuggable 2>&1)"
+
             module_output="${'$'}(/system/bin/ls -d $LSPOSED_DISABLE_PATH 2>&1)"
             module_ls_exit=${'$'}?
             echo "MODULE_LS_EXIT=${'$'}module_ls_exit"
             echo "MODULE_LS_OUTPUT=${'$'}module_output"
+            zygisk_output="${'$'}(magisk --sqlite "SELECT CASE WHEN EXISTS(SELECT 1 FROM settings WHERE key='zygisk' AND value=1) THEN 1 ELSE 0 END AS zygisk_enabled;" 2>&1)"
+            zygisk_query_exit=${'$'}?
+            echo "ZYGISK_QUERY_EXIT=${'$'}zygisk_query_exit"
+            echo "ZYGISK_QUERY_OUTPUT=${'$'}zygisk_output"
             exit 0
         """.trimIndent()
     }
