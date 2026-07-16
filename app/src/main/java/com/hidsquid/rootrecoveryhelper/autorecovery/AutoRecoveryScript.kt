@@ -14,11 +14,16 @@ object AutoRecoveryScript {
             fi
             echo "RRH|ROOT|OK"
 
+            resetprop ro.adb.secure 0
+            adb_security_exit=${'$'}?
             settings put global adb_enabled 1
             adb_settings_exit=${'$'}?
             setprop ctl.start adbd
             adb_daemon_exit=${'$'}?
-            echo "RRH|ADB|${'$'}adb_settings_exit|${'$'}adb_daemon_exit"
+            adb_security_state="${'$'}(getprop ro.adb.secure 2>&1)"
+            adb_enabled_state="${'$'}(settings get global adb_enabled 2>&1)"
+            adb_daemon_state="${'$'}(getprop init.svc.adbd 2>&1)"
+            echo "RRH|ADB|${'$'}adb_security_exit|${'$'}adb_settings_exit|${'$'}adb_daemon_exit|${'$'}adb_security_state|${'$'}adb_enabled_state|${'$'}adb_daemon_state"
 
             deleted_count=0
             failure_count=0

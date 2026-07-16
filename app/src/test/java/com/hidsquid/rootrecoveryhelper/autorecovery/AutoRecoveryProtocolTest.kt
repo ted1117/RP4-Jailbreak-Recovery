@@ -19,7 +19,7 @@ class AutoRecoveryProtocolTest {
 
     @Test
     fun `ADB result exposes combined success`() {
-        val event = AutoRecoveryProtocol.parse("RRH|ADB|0|0")
+        val event = AutoRecoveryProtocol.parse("RRH|ADB|0|0|0|0|1|running")
 
         assertTrue(event is AutoRecoveryEvent.AdbResult && event.succeeded)
     }

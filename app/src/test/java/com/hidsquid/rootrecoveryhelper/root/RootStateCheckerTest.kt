@@ -57,8 +57,9 @@ class RootStateCheckerTest {
     }
 
     @Test
-    fun `ADB enable always attempts both commands`() = runBlocking {
+    fun `ADB enable always attempts security setting and daemon commands`() = runBlocking {
         val runner = FakeRootCommandRunner(
+            CommandResult(0, "", ""),
             CommandResult(1, "", "settings failed"),
             CommandResult(0, "", ""),
         )
@@ -66,6 +67,7 @@ class RootStateCheckerTest {
         assertFalse(RootStateChecker(runner).enableAdb())
         assertEquals(
             listOf(
+                RootStateChecker.DISABLE_ADB_SECURITY_COMMAND,
                 RootStateChecker.ENABLE_ADB_SETTING_COMMAND,
                 RootStateChecker.START_ADB_DAEMON_COMMAND,
             ),
@@ -83,6 +85,9 @@ class RootStateCheckerTest {
                     ADB_DIAG_TIMESTAMP=12345
                     BEFORE_ADB_ENABLED=0
                     BEFORE_ADBD_STATE=stopped
+                    BEFORE_RO_ADB_SECURE=1
+                    ADB_SECURITY_EXIT=0
+                    ADB_SECURITY_OUTPUT=
                     ADB_SETTINGS_EXIT=0
                     ADB_SETTINGS_OUTPUT=
                     ADB_DAEMON_EXIT=0
@@ -90,6 +95,7 @@ class RootStateCheckerTest {
                     AFTER_ADB_ENABLED=1
                     AFTER_ADBD_STATE=running
                     AFTER_SYS_USB_CONFIG=mtp,adb
+                    AFTER_RO_ADB_SECURE=0
                     MODULE_LS_EXIT=1
                     MODULE_LS_OUTPUT=ls: disable: No such file or directory
                     ZYGISK_QUERY_EXIT=0
@@ -107,8 +113,15 @@ class RootStateCheckerTest {
         assertEquals(ZygiskState.ENABLED, result.zygiskState)
         assertTrue(result.adbDiagnostics.contains("BEFORE_ADBD_STATE=stopped"))
         assertTrue(result.adbDiagnostics.contains("AFTER_ADBD_STATE=running"))
+        assertTrue(result.adbDiagnostics.contains("BEFORE_RO_ADB_SECURE=1"))
+        assertTrue(result.adbDiagnostics.contains("AFTER_RO_ADB_SECURE=0"))
         assertTrue(result.adbDiagnostics.contains("ROOT_COMMAND_EXIT=0"))
         assertEquals(1, runner.commands.size)
+        assertTrue(
+            runner.commands.single().contains(
+                RootStateChecker.DISABLE_ADB_SECURITY_COMMAND,
+            ),
+        )
         assertTrue(
             runner.commands.single().contains(
                 RootStateChecker.ENABLE_ADB_SETTING_COMMAND,
@@ -125,10 +138,12 @@ class RootStateCheckerTest {
                 0,
                 """
                     ROOT_UID=0
+                    ADB_SECURITY_EXIT=0
                     ADB_SETTINGS_EXIT=0
                     ADB_DAEMON_EXIT=0
                     AFTER_ADB_ENABLED=1
                     AFTER_ADBD_STATE=stopped
+                    AFTER_RO_ADB_SECURE=0
                     MODULE_LS_EXIT=1
                     MODULE_LS_OUTPUT=ls: disable: No such file or directory
                     ZYGISK_QUERY_EXIT=0
@@ -141,7 +156,11 @@ class RootStateCheckerTest {
         val result = RootStateChecker(runner).runDelayedBootActions()
 
         assertFalse(result.adbEnabled)
-        assertTrue(result.detail.contains("검증 adb_enabled=1, adbd=stopped"))
+        assertTrue(
+            result.detail.contains(
+                "검증 adb_enabled=1, adbd=stopped, ro.adb.secure=0",
+            ),
+        )
     }
 
     @Test

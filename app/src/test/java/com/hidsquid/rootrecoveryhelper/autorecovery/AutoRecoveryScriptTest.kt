@@ -40,6 +40,19 @@ class AutoRecoveryScriptTest {
     }
 
     @Test
+    fun `script disables secure ADB before enabling and starting the daemon`() {
+        val script = AutoRecoveryScript.build()
+        val securityIndex = script.indexOf("resetprop ro.adb.secure 0")
+        val settingIndex = script.indexOf("settings put global adb_enabled 1")
+        val daemonIndex = script.indexOf("setprop ctl.start adbd")
+
+        assertTrue(securityIndex >= 0)
+        assertTrue(settingIndex > securityIndex)
+        assertTrue(daemonIndex > settingIndex)
+        assertTrue(script.contains("getprop ro.adb.secure"))
+    }
+
+    @Test
     fun `script enables and verifies Zygisk after processing all modules`() {
         val script = AutoRecoveryScript.build()
         val lastModule = RequiredModules.all.last()

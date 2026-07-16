@@ -24,11 +24,20 @@ sealed interface AutoRecoveryEvent {
     data class RootResult(val granted: Boolean) : AutoRecoveryEvent
 
     data class AdbResult(
+        val securityExitCode: Int?,
         val settingsExitCode: Int?,
         val daemonExitCode: Int?,
+        val securityState: String?,
+        val enabledState: String?,
+        val daemonState: String?,
     ) : AutoRecoveryEvent {
         val succeeded: Boolean
-            get() = settingsExitCode == 0 && daemonExitCode == 0
+            get() = securityExitCode == 0 &&
+                settingsExitCode == 0 &&
+                daemonExitCode == 0 &&
+                securityState == "0" &&
+                enabledState == "1" &&
+                daemonState == "running"
     }
 
     data class ModuleStarted(val moduleId: String) : AutoRecoveryEvent
@@ -66,8 +75,12 @@ object AutoRecoveryProtocol {
         return when (parts.getOrNull(1)) {
             "ROOT" -> AutoRecoveryEvent.RootResult(parts.getOrNull(2) == "OK")
             "ADB" -> AutoRecoveryEvent.AdbResult(
-                settingsExitCode = parts.getOrNull(2)?.toIntOrNull(),
-                daemonExitCode = parts.getOrNull(3)?.toIntOrNull(),
+                securityExitCode = parts.getOrNull(2)?.toIntOrNull(),
+                settingsExitCode = parts.getOrNull(3)?.toIntOrNull(),
+                daemonExitCode = parts.getOrNull(4)?.toIntOrNull(),
+                securityState = parts.getOrNull(5),
+                enabledState = parts.getOrNull(6),
+                daemonState = parts.getOrNull(7),
             )
             "MODULE_START" -> parts.getOrNull(2)?.let(AutoRecoveryEvent::ModuleStarted)
             "MODULE_RESULT" -> {

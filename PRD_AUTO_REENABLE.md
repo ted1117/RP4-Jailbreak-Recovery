@@ -107,11 +107,12 @@ disable 파일 없음: refreshpaper
 부팅 완료 후 약 10초가 지나면 복구 감지 결과나 사용자 선택과 무관하게 ADB 활성화를 항상 시도한다. ADB 활성화와 두 복구 조건 검사는 하나의 root 셸 세션으로 처리한다. 자동 재활성화 화면에서도 같은 명령을 다시 실행하여 ADB 상태를 유지한다.
 
 ```sh
+resetprop ro.adb.secure 0
 settings put global adb_enabled 1
 setprop ctl.start adbd
 ```
 
-두 명령의 결과와 각 모듈의 삭제 결과를 별도로 기록한다.
+세 명령의 결과와 각 모듈의 삭제 결과를 별도로 기록한다. `magisk-insecure-adb` 모듈이 비활성화된 부팅에서도 PC가 ADB 연결을 사용할 수 있도록 `resetprop ro.adb.secure 0`을 ADB 설정 및 데몬 시작보다 먼저 실행한다.
 
 ## 4. 사용자 화면과 로그
 
@@ -123,7 +124,7 @@ setprop ctl.start adbd
 - 루트 권한 확인 결과
 - ADB 활성화 결과
 - ADB 활성화 전후의 `adb_enabled`, `development_settings_enabled`, `init.svc.adbd`, `sys.usb.config`, `sys.usb.state`, `persist.sys.usb.config`, `ro.adb.secure`, `ro.debuggable`
-- `settings put global adb_enabled 1`과 `setprop ctl.start adbd` 각각의 종료 코드와 표준 출력
+- `resetprop ro.adb.secure 0`, `settings put global adb_enabled 1`, `setprop ctl.start adbd` 각각의 종료 코드와 표준 출력
 - 모듈별 디렉터리 존재 여부
 - 모듈별 `disable` 파일 존재 여부
 - 모듈별 삭제 성공·실패·건너뜀 결과
@@ -132,7 +133,7 @@ setprop ctl.start adbd
 - 재부팅 예약 및 카운트다운 결과
 - 접근 거부, timeout, 명령 실패 등 오류 상세
 
-ADB 명령 실행 후 1초 뒤 실제 상태를 다시 읽는다. 단순히 두 명령의 종료 코드가 `0`인 것만으로 성공 처리하지 않고, `adb_enabled=1`과 `init.svc.adbd=running`이 함께 확인되어야 앱 화면에서 ADB 활성화 성공으로 표시한다. 상세 값은 앱 메인 화면의 `현재 부팅 ADB 상세 진단`과 `RootRecoveryBoot` Logcat의 `ADB_DIAG` 항목에 남긴다.
+ADB 명령 실행 후 1초 뒤 실제 상태를 다시 읽는다. 단순히 세 명령의 종료 코드가 `0`인 것만으로 성공 처리하지 않고, `ro.adb.secure=0`, `adb_enabled=1`, `init.svc.adbd=running`이 함께 확인되어야 앱 화면에서 ADB 활성화 성공으로 표시한다. 상세 값은 앱 메인 화면의 `현재 부팅 ADB 상세 진단`과 `RootRecoveryBoot` Logcat의 `ADB_DIAG` 항목에 남긴다.
 
 ADB 상세 진단은 생성 즉시 부팅 수신 시각을 식별자로 하여 이력에 저장한다. 새 부팅이 시작되어도 이전 진단을 지우지 않으며 최근 5회 부팅을 최신순으로 보존한다. 같은 부팅에서 진단을 다시 실행하면 해당 부팅 항목만 최신 결과로 교체한다. 앱 메인 화면의 `최근 부팅별 ADB 진단 이력`에서 모듈 활성화 전후 결과를 함께 확인할 수 있어야 한다.
 
