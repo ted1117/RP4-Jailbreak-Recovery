@@ -14,10 +14,6 @@ enum class ZygiskRecoveryStatus {
     ALREADY_ENABLED,
     FAILED,
     UNSUPPORTED,
-    ;
-
-    val ready: Boolean
-        get() = this == ENABLED || this == ALREADY_ENABLED
 }
 
 sealed interface AutoRecoveryEvent {

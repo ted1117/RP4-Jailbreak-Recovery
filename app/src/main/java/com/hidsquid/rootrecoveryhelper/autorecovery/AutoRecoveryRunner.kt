@@ -12,7 +12,6 @@ data class AutoRecoveryRunResult(
     val timedOut: Boolean,
     val rootGranted: Boolean,
     val adbEnabled: Boolean,
-    val moduleResults: Map<String, ModuleRecoveryStatus>,
     val zygiskStatus: ZygiskRecoveryStatus?,
     val zygiskChanged: Boolean,
     val deletedCount: Int,
@@ -41,7 +40,6 @@ class AutoRecoveryRunner(
                 timedOut = false,
                 rootGranted = false,
                 adbEnabled = false,
-                moduleResults = emptyMap(),
                 zygiskStatus = null,
                 zygiskChanged = false,
                 deletedCount = 0,
@@ -94,7 +92,6 @@ class AutoRecoveryRunner(
             timedOut = timedOut,
             rootGranted = state.rootGranted,
             adbEnabled = state.adbEnabled,
-            moduleResults = state.moduleResults.toMap(),
             zygiskStatus = state.zygiskStatus,
             zygiskChanged = state.zygiskChanged,
             deletedCount = state.deletedCount,
@@ -106,7 +103,6 @@ class AutoRecoveryRunner(
     private class MutableRunState {
         var rootGranted: Boolean = false
         var adbEnabled: Boolean = false
-        val moduleResults = linkedMapOf<String, ModuleRecoveryStatus>()
         var zygiskStatus: ZygiskRecoveryStatus? = null
         var zygiskChanged: Boolean = false
         var deletedCount: Int = 0
@@ -118,9 +114,7 @@ class AutoRecoveryRunner(
                 is AutoRecoveryEvent.RootResult -> rootGranted = event.granted
                 is AutoRecoveryEvent.AdbResult -> adbEnabled = event.succeeded
                 is AutoRecoveryEvent.ModuleStarted -> Unit
-                is AutoRecoveryEvent.ModuleFinished -> {
-                    moduleResults[event.moduleId] = event.status
-                }
+                is AutoRecoveryEvent.ModuleFinished -> Unit
                 is AutoRecoveryEvent.ZygiskResult -> {
                     zygiskStatus = event.status
                 }

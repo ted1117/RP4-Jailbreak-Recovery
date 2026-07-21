@@ -3,10 +3,7 @@ package com.hidsquid.rootrecoveryhelper.autorecovery
 data class RequiredModule(
     val id: String,
     val directory: String,
-) {
-    val disableFile: String
-        get() = "$directory/disable"
-}
+)
 
 object RequiredModules {
     val all: List<RequiredModule> = listOf(

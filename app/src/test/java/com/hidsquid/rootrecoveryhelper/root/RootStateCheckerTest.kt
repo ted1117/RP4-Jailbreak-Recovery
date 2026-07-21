@@ -8,74 +8,6 @@ import org.junit.Test
 
 class RootStateCheckerTest {
     @Test
-    fun `root access requires a successful root id result`() = runBlocking {
-        val runner = FakeRootCommandRunner(
-            CommandResult(0, "uid=0(root) gid=0(root)", ""),
-        )
-
-        assertTrue(RootStateChecker(runner).hasRootAccess())
-        assertEquals(listOf(RootStateChecker.ROOT_ID_COMMAND), runner.commands)
-    }
-
-    @Test
-    fun `non-root id output is rejected`() = runBlocking {
-        val runner = FakeRootCommandRunner(
-            CommandResult(0, "uid=2000(shell) gid=2000(shell)", ""),
-        )
-
-        assertFalse(RootStateChecker(runner).hasRootAccess())
-    }
-
-    @Test
-    fun `disable file exit zero means disabled`() = runBlocking {
-        val checker = RootStateChecker(FakeRootCommandRunner(CommandResult(0, "", "")))
-
-        assertEquals(LsposedModuleState.DISABLED, checker.getLsposedModuleState())
-    }
-
-    @Test
-    fun `disable file exit one means enabled`() = runBlocking {
-        val checker = RootStateChecker(FakeRootCommandRunner(CommandResult(1, "", "")))
-
-        assertEquals(LsposedModuleState.ENABLED, checker.getLsposedModuleState())
-    }
-
-    @Test
-    fun `unexpected disable check failure stays unknown`() = runBlocking {
-        val checker = RootStateChecker(FakeRootCommandRunner(CommandResult(127, "", "failed")))
-
-        assertEquals(LsposedModuleState.UNKNOWN, checker.getLsposedModuleState())
-    }
-
-    @Test
-    fun `timed out disable check stays unknown even with exit zero`() = runBlocking {
-        val checker = RootStateChecker(
-            FakeRootCommandRunner(CommandResult(0, "", "", timedOut = true)),
-        )
-
-        assertEquals(LsposedModuleState.UNKNOWN, checker.getLsposedModuleState())
-    }
-
-    @Test
-    fun `ADB enable always attempts security setting and daemon commands`() = runBlocking {
-        val runner = FakeRootCommandRunner(
-            CommandResult(0, "", ""),
-            CommandResult(1, "", "settings failed"),
-            CommandResult(0, "", ""),
-        )
-
-        assertFalse(RootStateChecker(runner).enableAdb())
-        assertEquals(
-            listOf(
-                RootStateChecker.DISABLE_ADB_SECURITY_COMMAND,
-                RootStateChecker.ENABLE_ADB_SETTING_COMMAND,
-                RootStateChecker.START_ADB_DAEMON_COMMAND,
-            ),
-            runner.commands,
-        )
-    }
-
-    @Test
     fun `normal delayed boot actions skip forced ADB and parse all results`() = runBlocking {
         val runner = FakeRootCommandRunner(
             CommandResult(
@@ -111,7 +43,6 @@ class RootStateCheckerTest {
 
         assertTrue(result.hasRootAccess)
         assertTrue(result.adbEnabled)
-        assertFalse(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.NORMAL, result.adbActivationReason)
         assertEquals(LsposedModuleState.ENABLED, result.moduleState)
         assertEquals(ZygiskState.ENABLED, result.zygiskState)
@@ -123,14 +54,15 @@ class RootStateCheckerTest {
         assertTrue(result.adbDiagnostics.contains("ROOT_COMMAND_EXIT=0"))
         assertEquals(1, runner.commands.size)
         val command = runner.commands.single()
-        assertTrue(command.contains(RootStateChecker.DISABLE_ADB_SECURITY_COMMAND))
-        assertTrue(command.contains(RootStateChecker.ENABLE_ADB_SETTING_COMMAND))
+        assertTrue(command.contains("resetprop ro.adb.secure 0"))
+        assertTrue(command.contains("settings put global adb_enabled 1"))
         assertTrue(command.contains("key='zygisk'"))
         assertTrue(command.contains("adb_activation_reason\" = \"NORMAL"))
         assertTrue(runner.commands.single().contains("sleep 1"))
         assertTrue(
-            command.indexOf("/system/bin/ls -d ${RootStateChecker.LSPOSED_DISABLE_PATH}") <
-                command.indexOf(RootStateChecker.DISABLE_ADB_SECURITY_COMMAND),
+            command.indexOf(
+                "/system/bin/ls -d /data/adb/modules/zygisk_lsposed/disable",
+            ) < command.indexOf("resetprop ro.adb.secure 0"),
         )
     }
 
@@ -161,7 +93,7 @@ class RootStateCheckerTest {
         val result = RootStateChecker(runner).runDelayedBootActions()
 
         assertFalse(result.adbEnabled)
-        assertTrue(result.adbActivationAttempted)
+        assertEquals(AdbActivationReason.RECOVERY_DETECTED, result.adbActivationReason)
         assertTrue(
             result.detail.contains(
                 "검증 adb_enabled=1, adbd=stopped, ro.adb.secure=0",
@@ -192,13 +124,12 @@ class RootStateCheckerTest {
         val result = RootStateChecker(runner).runDelayedBootActions()
 
         assertTrue(result.hasRootAccess)
-        assertTrue(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.RECOVERY_DETECTED, result.adbActivationReason)
         assertEquals(LsposedModuleState.DISABLED, result.moduleState)
         assertEquals(1, runner.commands.size)
         assertTrue(
             runner.commands.single().contains(
-                "/system/bin/ls -d ${RootStateChecker.LSPOSED_DISABLE_PATH}",
+                "/system/bin/ls -d /data/adb/modules/zygisk_lsposed/disable",
             ),
         )
     }
@@ -228,7 +159,6 @@ class RootStateCheckerTest {
         assertTrue(result.hasRootAccess)
         assertEquals(LsposedModuleState.ENABLED, result.moduleState)
         assertEquals(ZygiskState.ENABLED, result.zygiskState)
-        assertFalse(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.NORMAL, result.adbActivationReason)
     }
 
@@ -256,7 +186,6 @@ class RootStateCheckerTest {
 
         assertTrue(result.hasRootAccess)
         assertEquals(LsposedModuleState.UNKNOWN, result.moduleState)
-        assertTrue(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.STATE_CHECK_FAILED, result.adbActivationReason)
     }
 
@@ -284,7 +213,6 @@ class RootStateCheckerTest {
 
         assertEquals(LsposedModuleState.ENABLED, result.moduleState)
         assertEquals(ZygiskState.DISABLED, result.zygiskState)
-        assertTrue(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.RECOVERY_DETECTED, result.adbActivationReason)
     }
 
@@ -311,7 +239,6 @@ class RootStateCheckerTest {
         val result = RootStateChecker(runner).runDelayedBootActions()
 
         assertEquals(ZygiskState.UNKNOWN, result.zygiskState)
-        assertTrue(result.adbActivationAttempted)
         assertEquals(AdbActivationReason.STATE_CHECK_FAILED, result.adbActivationReason)
     }
 

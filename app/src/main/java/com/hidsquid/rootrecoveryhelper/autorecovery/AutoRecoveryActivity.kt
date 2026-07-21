@@ -39,7 +39,9 @@ class AutoRecoveryActivity : Activity() {
 
         titleText = findViewById(R.id.autoRecoveryTitleText)
         statusText = findViewById(R.id.autoRecoveryStatusText)
-        progressBar = findViewById(R.id.autoRecoveryProgressBar)
+        progressBar = findViewById<ProgressBar>(R.id.autoRecoveryProgressBar).apply {
+            max = RequiredModules.all.size
+        }
         resultText = findViewById(R.id.autoRecoveryResultText)
         closeButton = findViewById<Button>(R.id.autoRecoveryCloseButton).apply {
             setOnClickListener { finish() }
@@ -179,7 +181,7 @@ class AutoRecoveryActivity : Activity() {
                 statusText.setText(R.string.auto_recovery_root_denied)
                 showCloseButton()
                 diagnostics.recordCheckStage(
-                    BootDiagnostics.STAGE_DELAYED_ADB_ROOT_UNAVAILABLE,
+                    BootDiagnostics.STAGE_ROOT_UNAVAILABLE,
                     detail,
                 )
             }

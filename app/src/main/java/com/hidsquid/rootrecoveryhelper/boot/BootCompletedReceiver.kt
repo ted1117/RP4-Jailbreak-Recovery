@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
+import com.hidsquid.rootrecoveryhelper.diagnostics.toDiagnosticDetail
 
 class BootCompletedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -64,18 +65,6 @@ class BootCompletedReceiver : BroadcastReceiver() {
         null
     } catch (exception: RuntimeException) {
         exception
-    }
-
-    private fun RuntimeException.toDiagnosticDetail(): String {
-        val type = javaClass.simpleName.ifBlank { javaClass.name }
-        val message = message.orEmpty()
-        return if (message.isBlank()) type else "$type: $message"
-    }
-
-    private fun Exception.toDiagnosticDetail(): String {
-        val type = javaClass.simpleName.ifBlank { javaClass.name }
-        val message = message.orEmpty()
-        return if (message.isBlank()) type else "$type: $message"
     }
 
     companion object {

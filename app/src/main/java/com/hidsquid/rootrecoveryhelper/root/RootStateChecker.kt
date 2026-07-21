@@ -28,45 +28,11 @@ data class DelayedBootCheckResult(
     val zygiskState: ZygiskState,
     val adbDiagnostics: String,
     val detail: String,
-) {
-    val adbActivationAttempted: Boolean
-        get() = adbActivationReason == AdbActivationReason.RECOVERY_DETECTED ||
-            adbActivationReason == AdbActivationReason.STATE_CHECK_FAILED
-}
+)
 
 class RootStateChecker(
     private val commandRunner: RootCommandRunner,
 ) {
-    suspend fun hasRootAccess(): Boolean {
-        val result = commandRunner.execute(ROOT_ID_COMMAND)
-        return result.isSuccessful && result.stdout.contains(ROOT_ID_OUTPUT)
-    }
-
-    suspend fun getLsposedModuleState(): LsposedModuleState {
-        val result = commandRunner.execute("test -f $LSPOSED_DISABLE_PATH")
-        if (result.timedOut) {
-            return LsposedModuleState.UNKNOWN
-        }
-
-        return when (result.exitCode) {
-            0 -> LsposedModuleState.DISABLED
-            1 -> LsposedModuleState.ENABLED
-            else -> LsposedModuleState.UNKNOWN
-        }
-    }
-
-    suspend fun isLsposedDisabled(): Boolean =
-        getLsposedModuleState() == LsposedModuleState.DISABLED
-
-    suspend fun enableAdb(): Boolean {
-        val disableSecurityResult = commandRunner.execute(DISABLE_ADB_SECURITY_COMMAND)
-        val enableSettingResult = commandRunner.execute(ENABLE_ADB_SETTING_COMMAND)
-        val startDaemonResult = commandRunner.execute(START_ADB_DAEMON_COMMAND)
-        return disableSecurityResult.isSuccessful &&
-            enableSettingResult.isSuccessful &&
-            startDaemonResult.isSuccessful
-    }
-
     suspend fun runDelayedBootActions(): DelayedBootCheckResult {
         val result = commandRunner.execute(DELAYED_BOOT_COMMAND)
         if (result.timedOut) {
@@ -178,9 +144,6 @@ class RootStateChecker(
         append(result.stderr.ifBlank { "없음" }.replace('\n', ' '))
     }
 
-    private val CommandResult.isSuccessful: Boolean
-        get() = !timedOut && exitCode == 0
-
     private fun String.markerValue(marker: String): String? =
         lineSequence()
             .firstOrNull { it.startsWith("$marker=") }
@@ -200,12 +163,8 @@ class RootStateChecker(
     }
 
     companion object {
-        const val LSPOSED_DISABLE_PATH = "/data/adb/modules/zygisk_lsposed/disable"
-
-        const val ROOT_ID_COMMAND = "id"
-        const val DISABLE_ADB_SECURITY_COMMAND = "resetprop ro.adb.secure 0"
-        const val ENABLE_ADB_SETTING_COMMAND = "settings put global adb_enabled 1"
-        const val START_ADB_DAEMON_COMMAND = "setprop ctl.start adbd"
+        private const val LSPOSED_DISABLE_PATH =
+            "/data/adb/modules/zygisk_lsposed/disable"
 
         private const val ROOT_UID_MARKER = "ROOT_UID"
         private const val ADB_SETTINGS_EXIT_MARKER = "ADB_SETTINGS_EXIT"
@@ -238,8 +197,6 @@ class RootStateChecker(
         private const val ZYGISK_QUERY_EXIT_MARKER = "ZYGISK_QUERY_EXIT"
         private const val ZYGISK_QUERY_OUTPUT_MARKER = "ZYGISK_QUERY_OUTPUT"
         private const val ZYGISK_STATE_MARKER = "ZYGISK_STATE"
-        private const val ROOT_ID_OUTPUT = "uid=0(root)"
-
         private val ADB_DIAGNOSTIC_MARKERS = listOf(
             "TIMESTAMP" to ADB_DIAG_TIMESTAMP_MARKER,
             "BEFORE_ADB_ENABLED" to BEFORE_ADB_ENABLED_MARKER,

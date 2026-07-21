@@ -43,8 +43,8 @@ class BootDiagnostics(context: Context) {
     }
 
     fun recordMainLaunchScheduled() {
-        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 LSPosed disable 상태 확인 예정")
-        Log.i(LOG_TAG, "LSPosed disable check scheduled after boot delay")
+        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 루팅 상태 및 조건부 ADB 처리 예정")
+        Log.i(LOG_TAG, "Root state check and conditional ADB handling scheduled after boot delay")
     }
 
     fun recordMainLaunchFailed(exception: RuntimeException) {
@@ -123,37 +123,24 @@ class BootDiagnostics(context: Context) {
         }
     }
 
-    private fun RuntimeException.toDiagnosticDetail(): String {
-        val type = javaClass.simpleName.ifBlank { javaClass.name }
-        val message = message.orEmpty()
-        return if (message.isBlank()) type else "$type: $message"
-    }
-
     companion object {
-        const val LOG_TAG = "RootRecoveryBoot"
+        private const val LOG_TAG = "RootRecoveryBoot"
 
-        const val MAIN_LAUNCH_NOT_ATTEMPTED = "NOT_ATTEMPTED"
+        private const val MAIN_LAUNCH_NOT_ATTEMPTED = "NOT_ATTEMPTED"
         const val MAIN_LAUNCH_SCHEDULED = "SCHEDULED"
         const val MAIN_LAUNCH_REQUESTED = "REQUESTED"
         const val MAIN_LAUNCH_FAILED = "FAILED"
         const val MAIN_LAUNCH_SKIPPED = "SKIPPED"
 
-        const val STAGE_NOT_RECORDED = "NOT_RECORDED"
+        private const val STAGE_NOT_RECORDED = "NOT_RECORDED"
         const val STAGE_BOOT_RECEIVED = "BOOT_RECEIVED"
-        const val STAGE_CHECKING_ROOT = "CHECKING_ROOT"
         const val STAGE_ROOT_UNAVAILABLE = "ROOT_UNAVAILABLE"
         const val STAGE_ADB_SCHEDULED = "ADB_SCHEDULED"
         const val STAGE_ADB_SCHEDULE_FAILED = "ADB_SCHEDULE_FAILED"
-        const val STAGE_ENABLING_ADB = "ENABLING_ADB"
         const val STAGE_CHECKING_MODULE = "CHECKING_MODULE"
         const val STAGE_MODULE_CHECK_FAILED = "MODULE_CHECK_FAILED"
-        const val STAGE_LSPOSED_DISABLED = "LSPOSED_DISABLED"
-        const val STAGE_LSPOSED_REENABLED = "LSPOSED_REENABLED"
         const val STAGE_NORMAL = "NORMAL"
         const val STAGE_CHECK_ERROR = "CHECK_ERROR"
-        const val STAGE_DELAYED_ADB_CHECKING_ROOT = "DELAYED_ADB_CHECKING_ROOT"
-        const val STAGE_DELAYED_ADB_ROOT_UNAVAILABLE = "DELAYED_ADB_ROOT_UNAVAILABLE"
-        const val STAGE_DELAYED_ADB_RESULT = "DELAYED_ADB_RESULT"
         const val STAGE_AUTO_RECOVERY_LAUNCH = "AUTO_RECOVERY_LAUNCH"
         const val STAGE_AUTO_RECOVERY_RUNNING = "AUTO_RECOVERY_RUNNING"
         const val STAGE_AUTO_RECOVERY_RESULT = "AUTO_RECOVERY_RESULT"

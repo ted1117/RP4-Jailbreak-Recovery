@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
+import com.hidsquid.rootrecoveryhelper.diagnostics.toDiagnosticDetail
 import com.hidsquid.rootrecoveryhelper.recovery.LsposedSetupActivity
 import com.hidsquid.rootrecoveryhelper.recovery.RootRecoveryActivity
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
@@ -125,18 +126,6 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 exception.toDiagnosticDetail(),
             )
         }
-    }
-
-    private fun RuntimeException.toDiagnosticDetail(): String {
-        val type = javaClass.simpleName.ifBlank { javaClass.name }
-        val message = message.orEmpty()
-        return if (message.isBlank()) type else "$type: $message"
-    }
-
-    private fun Exception.toDiagnosticDetail(): String {
-        val type = javaClass.simpleName.ifBlank { javaClass.name }
-        val message = message.orEmpty()
-        return if (message.isBlank()) type else "$type: $message"
     }
 
     companion object {

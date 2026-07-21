@@ -18,7 +18,7 @@ class RecoveryPreferences(context: Context) {
         preferences.edit().putBoolean(KEY_PENDING_LSPOSED_SETUP, value).commit()
 
     companion object {
-        const val KEY_PENDING_LSPOSED_SETUP = "pending_lsposed_setup"
+        private const val KEY_PENDING_LSPOSED_SETUP = "pending_lsposed_setup"
 
         private const val PREFERENCES_NAME = "root_recovery"
     }

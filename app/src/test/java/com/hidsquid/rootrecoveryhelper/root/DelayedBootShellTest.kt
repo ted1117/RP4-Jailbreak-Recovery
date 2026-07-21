@@ -5,7 +5,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -23,7 +22,6 @@ class DelayedBootShellTest {
 
         assertEquals(AdbActivationReason.NORMAL, result.adbActivationReason)
         assertEquals(ZygiskState.ENABLED, result.zygiskState)
-        assertFalse(result.adbActivationAttempted)
         assertForcedAdbCalls(execution.calls, expected = false)
     }
 
@@ -40,7 +38,6 @@ class DelayedBootShellTest {
 
         assertEquals(AdbActivationReason.RECOVERY_DETECTED, result.adbActivationReason)
         assertEquals(ZygiskState.DISABLED, result.zygiskState)
-        assertTrue(result.adbActivationAttempted)
         assertForcedAdbCalls(execution.calls, expected = true)
     }
 
@@ -57,7 +54,6 @@ class DelayedBootShellTest {
 
         assertEquals(AdbActivationReason.STATE_CHECK_FAILED, result.adbActivationReason)
         assertEquals(LsposedModuleState.UNKNOWN, result.moduleState)
-        assertTrue(result.adbActivationAttempted)
         assertForcedAdbCalls(execution.calls, expected = true)
     }
 
@@ -76,15 +72,15 @@ class DelayedBootShellTest {
     private fun assertForcedAdbCalls(calls: List<String>, expected: Boolean) {
         assertEquals(
             expected,
-            calls.contains(RootStateChecker.DISABLE_ADB_SECURITY_COMMAND),
+            calls.contains("resetprop ro.adb.secure 0"),
         )
         assertEquals(
             expected,
-            calls.contains(RootStateChecker.ENABLE_ADB_SETTING_COMMAND),
+            calls.contains("settings put global adb_enabled 1"),
         )
         assertEquals(
             expected,
-            calls.contains(RootStateChecker.START_ADB_DAEMON_COMMAND),
+            calls.contains("setprop ctl.start adbd"),
         )
     }
 

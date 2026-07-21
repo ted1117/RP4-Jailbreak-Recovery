@@ -14,7 +14,6 @@
         android:paddingBottom="32dp">
 
         <TextView
-            android:id="@+id/titleText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/main_title"

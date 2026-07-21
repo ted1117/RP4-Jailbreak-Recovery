@@ -168,9 +168,6 @@ class MainActivity : Activity() {
         BootDiagnostics.STAGE_BOOT_RECEIVED -> getString(
             R.string.boot_diagnostics_stage_boot_received,
         )
-        BootDiagnostics.STAGE_CHECKING_ROOT -> getString(
-            R.string.boot_diagnostics_stage_checking_root,
-        )
         BootDiagnostics.STAGE_ROOT_UNAVAILABLE -> getString(
             R.string.boot_diagnostics_stage_root_unavailable,
         )
@@ -180,33 +177,15 @@ class MainActivity : Activity() {
         BootDiagnostics.STAGE_ADB_SCHEDULE_FAILED -> getString(
             R.string.boot_diagnostics_stage_adb_schedule_failed,
         )
-        BootDiagnostics.STAGE_ENABLING_ADB -> getString(
-            R.string.boot_diagnostics_stage_enabling_adb,
-        )
         BootDiagnostics.STAGE_CHECKING_MODULE -> getString(
             R.string.boot_diagnostics_stage_checking_module,
         )
         BootDiagnostics.STAGE_MODULE_CHECK_FAILED -> getString(
             R.string.boot_diagnostics_stage_module_failed,
         )
-        BootDiagnostics.STAGE_LSPOSED_DISABLED -> getString(
-            R.string.boot_diagnostics_stage_disabled,
-        )
-        BootDiagnostics.STAGE_LSPOSED_REENABLED -> getString(
-            R.string.boot_diagnostics_stage_reenabled,
-        )
         BootDiagnostics.STAGE_NORMAL -> getString(R.string.boot_diagnostics_stage_normal)
         BootDiagnostics.STAGE_CHECK_ERROR -> getString(
             R.string.boot_diagnostics_stage_error,
-        )
-        BootDiagnostics.STAGE_DELAYED_ADB_CHECKING_ROOT -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_root,
-        )
-        BootDiagnostics.STAGE_DELAYED_ADB_ROOT_UNAVAILABLE -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_unavailable,
-        )
-        BootDiagnostics.STAGE_DELAYED_ADB_RESULT -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_result,
         )
         BootDiagnostics.STAGE_AUTO_RECOVERY_LAUNCH -> getString(
             R.string.boot_diagnostics_stage_auto_recovery_launch,
