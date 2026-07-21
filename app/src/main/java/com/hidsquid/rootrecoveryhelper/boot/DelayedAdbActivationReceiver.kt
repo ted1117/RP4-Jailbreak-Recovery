@@ -50,11 +50,11 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         val pendingLsposedSetup = RecoveryPreferences(context).pendingLsposedSetup
         diagnostics.recordCheckStage(
             BootDiagnostics.STAGE_CHECKING_MODULE,
-            "LSPosed disable 파일과 Zygisk 설정 확인 후 필요한 경우에만 ADB 활성화",
+            "LSPosed disable 파일과 Zygisk 설정 확인 후 Dialog 대상이면 ADB 활성화",
         )
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),
-        ).runDelayedBootActions()
+        ).runDelayedBootActions(forceAdbForDialog = pendingLsposedSetup)
         diagnostics.recordAdbDiagnostics(check.adbDiagnostics)
         val target = DelayedDialogTargetResolver.resolve(
             pendingLsposedSetup = pendingLsposedSetup,

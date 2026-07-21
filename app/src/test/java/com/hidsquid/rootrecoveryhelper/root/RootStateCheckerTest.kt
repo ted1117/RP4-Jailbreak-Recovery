@@ -67,6 +67,37 @@ class RootStateCheckerTest {
     }
 
     @Test
+    fun `dialog-required ADB reason is parsed from the integrated command`() = runBlocking {
+        val runner = FakeRootCommandRunner(
+            CommandResult(
+                0,
+                """
+                    ROOT_UID=0
+                    ADB_ACTIVATION_REASON=DIALOG_REQUIRED
+                    ADB_SECURITY_EXIT=0
+                    ADB_SETTINGS_EXIT=0
+                    ADB_DAEMON_EXIT=0
+                    AFTER_ADB_ENABLED=1
+                    AFTER_ADBD_STATE=running
+                    AFTER_RO_ADB_SECURE=0
+                    MODULE_LS_EXIT=1
+                    MODULE_LS_OUTPUT=ls: disable: No such file or directory
+                    ZYGISK_QUERY_EXIT=0
+                    ZYGISK_QUERY_OUTPUT=zygisk_enabled=1
+                    ZYGISK_STATE=ENABLED
+                """.trimIndent(),
+                "",
+            ),
+        )
+
+        val result = RootStateChecker(runner).runDelayedBootActions(forceAdbForDialog = true)
+
+        assertEquals(AdbActivationReason.DIALOG_REQUIRED, result.adbActivationReason)
+        assertTrue(result.adbEnabled)
+        assertTrue(runner.commands.single().contains("force_adb_for_dialog=1"))
+    }
+
+    @Test
     fun `successful ADB command exits do not count without verified final state`() = runBlocking {
         val runner = FakeRootCommandRunner(
             CommandResult(

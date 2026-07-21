@@ -22,7 +22,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
             diagnostics.recordBootReceived()
 
             // 임시 테스트 모드: 부팅 직후에는 예약만 하고 약 10초 뒤 루팅 상태를 확인한다.
-            // 복구가 필요하거나 상태 확인에 실패한 경우에만 ADB를 강제로 활성화한다.
+            // Dialog 대상이거나 상태 확인에 실패한 경우 ADB를 강제로 활성화한다.
             val scheduleFailure = scheduleDelayedCheck(appContext)
             if (scheduleFailure == null) {
                 diagnostics.recordCheckStage(

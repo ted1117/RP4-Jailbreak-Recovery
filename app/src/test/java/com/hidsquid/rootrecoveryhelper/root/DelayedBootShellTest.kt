@@ -26,6 +26,24 @@ class DelayedBootShellTest {
     }
 
     @Test
+    fun `pending dialog forces ADB in an otherwise normal state`() {
+        val execution = runShell(
+            moduleExit = 1,
+            moduleOutput = "ls: disable: No such file or directory",
+            zygiskExit = 0,
+            zygiskOutput = "zygisk_enabled=1",
+            forceAdbForDialog = true,
+        )
+
+        val result = parse(execution)
+
+        assertEquals(AdbActivationReason.DIALOG_REQUIRED, result.adbActivationReason)
+        assertEquals(LsposedModuleState.ENABLED, result.moduleState)
+        assertEquals(ZygiskState.ENABLED, result.zygiskState)
+        assertForcedAdbCalls(execution.calls, expected = true)
+    }
+
+    @Test
     fun `disabled Zygisk enables ADB even when result follows a warning`() {
         val execution = runShell(
             moduleExit = 1,
@@ -89,6 +107,7 @@ class DelayedBootShellTest {
         moduleOutput: String,
         zygiskExit: Int,
         zygiskOutput: String,
+        forceAdbForDialog: Boolean = false,
     ): ShellExecution {
         val stubDirectory = Files.createTempDirectory("root-recovery-shell-test")
         return try {
@@ -97,7 +116,10 @@ class DelayedBootShellTest {
             val process = ProcessBuilder(
                 "/bin/sh",
                 "-c",
-                RootStateChecker.buildDelayedBootCommand(moduleLsCommand = "ls"),
+                RootStateChecker.buildDelayedBootCommand(
+                    moduleLsCommand = "ls",
+                    forceAdbForDialog = forceAdbForDialog,
+                ),
             )
                 .redirectErrorStream(true)
                 .apply {

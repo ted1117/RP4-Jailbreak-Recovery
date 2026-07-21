@@ -15,6 +15,7 @@ enum class ZygiskState {
 enum class AdbActivationReason {
     RECOVERY_DETECTED,
     STATE_CHECK_FAILED,
+    DIALOG_REQUIRED,
     NORMAL,
     NOT_RUN,
     UNKNOWN,
@@ -33,8 +34,12 @@ data class DelayedBootCheckResult(
 class RootStateChecker(
     private val commandRunner: RootCommandRunner,
 ) {
-    suspend fun runDelayedBootActions(): DelayedBootCheckResult {
-        val result = commandRunner.execute(DELAYED_BOOT_COMMAND)
+    suspend fun runDelayedBootActions(
+        forceAdbForDialog: Boolean = false,
+    ): DelayedBootCheckResult {
+        val result = commandRunner.execute(
+            buildDelayedBootCommand(forceAdbForDialog = forceAdbForDialog),
+        )
         if (result.timedOut) {
             return DelayedBootCheckResult(
                 hasRootAccess = false,
@@ -158,6 +163,7 @@ class RootStateChecker(
     private fun String?.toAdbActivationReason(): AdbActivationReason = when (this) {
         AdbActivationReason.RECOVERY_DETECTED.name -> AdbActivationReason.RECOVERY_DETECTED
         AdbActivationReason.STATE_CHECK_FAILED.name -> AdbActivationReason.STATE_CHECK_FAILED
+        AdbActivationReason.DIALOG_REQUIRED.name -> AdbActivationReason.DIALOG_REQUIRED
         AdbActivationReason.NORMAL.name -> AdbActivationReason.NORMAL
         else -> AdbActivationReason.UNKNOWN
     }
@@ -225,10 +231,9 @@ class RootStateChecker(
             "AFTER_RO_DEBUGGABLE" to AFTER_RO_DEBUGGABLE_MARKER,
         )
 
-        private val DELAYED_BOOT_COMMAND = buildDelayedBootCommand()
-
         internal fun buildDelayedBootCommand(
             moduleLsCommand: String = "/system/bin/ls",
+            forceAdbForDialog: Boolean = false,
         ): String = """
             root_uid="${'$'}(id -u 2>/dev/null)"
             echo "ROOT_UID=${'$'}root_uid"
@@ -256,6 +261,7 @@ class RootStateChecker(
 
             recovery_detected=0
             state_check_failed=0
+            force_adb_for_dialog=${if (forceAdbForDialog) 1 else 0}
             zygisk_state="UNKNOWN"
             if [ "${'$'}module_ls_exit" -eq 0 ]; then
                 recovery_detected=1
@@ -286,6 +292,8 @@ class RootStateChecker(
                 adb_activation_reason="RECOVERY_DETECTED"
             elif [ "${'$'}state_check_failed" -eq 1 ]; then
                 adb_activation_reason="STATE_CHECK_FAILED"
+            elif [ "${'$'}force_adb_for_dialog" -eq 1 ]; then
+                adb_activation_reason="DIALOG_REQUIRED"
             else
                 adb_activation_reason="NORMAL"
             fi
