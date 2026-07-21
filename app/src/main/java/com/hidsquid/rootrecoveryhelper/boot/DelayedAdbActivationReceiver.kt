@@ -30,7 +30,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 routeDelayedDialog(appContext, diagnostics)
             } catch (exception: Exception) {
                 diagnostics.recordMainLaunchSkipped(
-                    "ADB 활성화 또는 루팅 상태 검사 예외로 Dialog 실행 안 함",
+                    "루팅 상태 검사 또는 조건부 ADB 처리 예외로 Dialog 실행 안 함",
                 )
                 diagnostics.recordCheckStage(
                     BootDiagnostics.STAGE_CHECK_ERROR,
@@ -48,8 +48,8 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
     ) {
         val pendingLsposedSetup = RecoveryPreferences(context).pendingLsposedSetup
         diagnostics.recordCheckStage(
-            BootDiagnostics.STAGE_ENABLING_ADB,
-            "ADB 강제 활성화 후 LSPosed disable 파일과 Zygisk 설정 확인 중",
+            BootDiagnostics.STAGE_CHECKING_MODULE,
+            "LSPosed disable 파일과 Zygisk 설정 확인 후 필요한 경우에만 ADB 활성화",
         )
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),

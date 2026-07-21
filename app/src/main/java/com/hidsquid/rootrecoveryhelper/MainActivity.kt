@@ -6,6 +6,7 @@ import android.widget.Button
 import android.widget.TextView
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnosticsSnapshot
+import com.hidsquid.rootrecoveryhelper.root.AdbActivationReason
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
@@ -65,10 +66,11 @@ class MainActivity : Activity() {
 
             statusText.setText(R.string.setup_complete)
             adbTestStatusText.setText(
-                if (check.adbEnabled) {
-                    R.string.adb_test_mode_enabled
-                } else {
-                    R.string.adb_test_mode_failed
+                when {
+                    check.adbActivationReason == AdbActivationReason.NORMAL ->
+                        R.string.adb_test_mode_not_needed
+                    check.adbEnabled -> R.string.adb_test_mode_enabled
+                    else -> R.string.adb_test_mode_failed
                 },
             )
             val moduleStatusResource = when {
