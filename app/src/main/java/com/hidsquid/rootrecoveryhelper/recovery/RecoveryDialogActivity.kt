@@ -38,6 +38,7 @@ abstract class RecoveryDialogActivity : Activity() {
                 setCanceledOnTouchOutside(false)
                 setOnCancelListener { finish() }
                 setOnShowListener {
+                    RecoveryDialogStyler.apply(this)
                     val button = getButton(AlertDialog.BUTTON_POSITIVE)
                     button.setOnClickListener {
                         button.isEnabled = false

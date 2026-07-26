@@ -112,7 +112,7 @@ class RootCommandExecutor(
     }
 
     companion object {
-        const val DEFAULT_TIMEOUT_MILLIS = 30_000L
+        private const val DEFAULT_TIMEOUT_MILLIS = 30_000L
 
         private const val START_FAILED_EXIT_CODE = -1
         private const val TIMEOUT_EXIT_CODE = -2

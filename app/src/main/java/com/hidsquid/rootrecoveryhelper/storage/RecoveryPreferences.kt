@@ -17,8 +17,15 @@ class RecoveryPreferences(context: Context) {
     fun commitPendingLsposedSetup(value: Boolean): Boolean =
         preferences.edit().putBoolean(KEY_PENDING_LSPOSED_SETUP, value).commit()
 
+    var ignoreRecoveryDialogsForever: Boolean
+        get() = preferences.getBoolean(KEY_IGNORE_RECOVERY_DIALOGS_FOREVER, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_IGNORE_RECOVERY_DIALOGS_FOREVER, value).apply()
+        }
+
     companion object {
-        const val KEY_PENDING_LSPOSED_SETUP = "pending_lsposed_setup"
+        private const val KEY_PENDING_LSPOSED_SETUP = "pending_lsposed_setup"
+        private const val KEY_IGNORE_RECOVERY_DIALOGS_FOREVER = "ignore_recovery_dialogs_forever"
 
         private const val PREFERENCES_NAME = "root_recovery"
     }
