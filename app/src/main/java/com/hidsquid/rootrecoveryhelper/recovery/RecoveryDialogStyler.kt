@@ -12,9 +12,9 @@ internal object RecoveryDialogStyler {
         val contentPanel = dialog.findViewById<View>(dialog.androidId("contentPanel"))
         val message = dialog.findViewById<TextView>(android.R.id.message)
 
-        titleTemplate?.updateMargins(bottom = dialog.dp(8))
+        titleTemplate?.updateMargins(bottom = dialog.dp(16))
         contentPanel?.minimumHeight = 0
-        message?.updateMargins(bottom = dialog.dp(4))
+        message?.updateMargins(bottom = dialog.dp(12))
     }
 
     private fun AlertDialog.androidId(name: String): Int =

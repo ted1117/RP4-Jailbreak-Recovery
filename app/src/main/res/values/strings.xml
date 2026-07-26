@@ -52,6 +52,11 @@
     <string name="root_recovery_message">Magisk 모듈과 Zygisk를 재활성화할까요?</string>
     <string name="start_root_recovery">재활성화</string>
     <string name="ignore_root_recovery">무시</string>
+    <string name="ignore_root_recovery_forever">영원히 무시하기</string>
+    <string name="ignore_root_recovery_confirmation_title">루팅 복구를 정말 하지 않을까요?</string>
+    <string name="ignore_root_recovery_confirmation_message">앞으로 루팅 해제가 감지되어도 복구 다이얼로그를 표시하지 않습니다.</string>
+    <string name="ignore_root_recovery_confirmation_no">안 해요</string>
+    <string name="ignore_root_recovery_confirmation_recover">복구하기</string>
     <string name="lsposed_setup_title">LSPosed</string>
     <string name="lsposed_setup_message"><b>리페4 새로고침</b> 또는 <b>RP4Posed</b>를 활성화하고\n재부팅하세요.</string>
     <string name="open_lsposed_manager">LSPosed로 이동</string>

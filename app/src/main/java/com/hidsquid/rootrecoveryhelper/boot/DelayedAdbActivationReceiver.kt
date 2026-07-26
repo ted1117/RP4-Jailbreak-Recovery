@@ -48,7 +48,9 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         context: Context,
         diagnostics: BootDiagnostics,
     ) {
-        val pendingLsposedSetup = RecoveryPreferences(context).pendingLsposedSetup
+        val recoveryPreferences = RecoveryPreferences(context)
+        val pendingLsposedSetup = recoveryPreferences.pendingLsposedSetup
+        val ignoreRecoveryDialogsForever = recoveryPreferences.ignoreRecoveryDialogsForever
         val forceAdbAlways = DiagnosticsSettings(context).forceAdbAlways
         diagnostics.recordCheckStage(
             BootDiagnostics.STAGE_CHECKING_MODULE,
@@ -57,7 +59,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),
         ).runDelayedBootActions(
-            forceAdbForDialog = pendingLsposedSetup,
+            forceAdbForDialog = pendingLsposedSetup && !ignoreRecoveryDialogsForever,
             forceAdbAlways = forceAdbAlways,
         )
         diagnostics.recordAdbDiagnostics(check.adbDiagnostics)
@@ -65,6 +67,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
             pendingLsposedSetup = pendingLsposedSetup,
             lsposedModuleState = check.moduleState,
             zygiskState = check.zygiskState,
+            ignoreRecoveryDialogsForever = ignoreRecoveryDialogsForever,
         )
 
         when (target) {

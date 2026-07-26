@@ -77,4 +77,30 @@ class DelayedDialogTargetResolverTest {
             ),
         )
     }
+
+    @Test
+    fun `permanent ignore suppresses root recovery dialog`() {
+        assertEquals(
+            DelayedDialogTarget.NONE,
+            DelayedDialogTargetResolver.resolve(
+                pendingLsposedSetup = false,
+                lsposedModuleState = LsposedModuleState.DISABLED,
+                zygiskState = ZygiskState.DISABLED,
+                ignoreRecoveryDialogsForever = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `permanent ignore suppresses pending LSPosed setup too`() {
+        assertEquals(
+            DelayedDialogTarget.NONE,
+            DelayedDialogTargetResolver.resolve(
+                pendingLsposedSetup = true,
+                lsposedModuleState = LsposedModuleState.ENABLED,
+                zygiskState = ZygiskState.ENABLED,
+                ignoreRecoveryDialogsForever = true,
+            ),
+        )
+    }
 }
