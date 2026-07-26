@@ -79,7 +79,7 @@ class RootRecoveryActivity : Activity() {
 
     private fun ignoreRootRecovery() {
         diagnostics.recordMainLaunchSkipped(
-            "사용자가 루팅 복구를 무시함; 모듈을 변경하지 않음",
+            "사용자가 탈옥 복구를 무시함; 모듈을 변경하지 않음",
         )
         finish()
     }
@@ -91,7 +91,7 @@ class RootRecoveryActivity : Activity() {
             .setNegativeButton(R.string.ignore_root_recovery_confirmation_no) { _, _ ->
                 recoveryPreferences.ignoreRecoveryDialogsForever = true
                 diagnostics.recordMainLaunchSkipped(
-                    "사용자가 루팅 복구를 영구적으로 무시함; 이후 복구 Dialog를 표시하지 않음",
+                    "사용자가 탈옥 복구를 영구적으로 무시함; 이후 복구 Dialog를 표시하지 않음",
                 )
                 finish()
             }
@@ -116,7 +116,7 @@ class RootRecoveryActivity : Activity() {
             startActivity(intent)
             diagnostics.recordCheckStage(
                 BootDiagnostics.STAGE_AUTO_RECOVERY_LAUNCH,
-                "사용자가 루팅 복구를 선택하여 자동 삭제 화면 실행",
+                "사용자가 탈옥 복구를 선택하여 자동 삭제 화면 실행",
             )
             finish()
         } catch (exception: RuntimeException) {

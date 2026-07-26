@@ -32,7 +32,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 routeDelayedDialog(appContext, diagnostics)
             } catch (exception: Exception) {
                 diagnostics.recordMainLaunchSkipped(
-                    "루팅 상태 검사 또는 조건부 ADB 처리 예외로 Dialog 실행 안 함",
+                    "탈옥 상태 검사 또는 조건부 ADB 처리 예외로 Dialog 실행 안 함",
                 )
                 diagnostics.recordCheckStage(
                     BootDiagnostics.STAGE_CHECK_ERROR,
@@ -75,7 +75,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 context = context,
                 diagnostics = diagnostics,
                 dialogActivity = RootRecoveryActivity::class.java,
-                description = "루팅 해제 감지 Dialog",
+                description = "탈옥 해제 감지 Dialog",
                 checkDetail = check.detail,
             )
             DelayedDialogTarget.LSPOSED_SETUP -> launchDialog(
