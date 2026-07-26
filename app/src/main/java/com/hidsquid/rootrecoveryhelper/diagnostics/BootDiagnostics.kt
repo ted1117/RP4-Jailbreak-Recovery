@@ -96,7 +96,7 @@ class BootDiagnostics(context: Context) {
     }
 
     fun recordMainLaunchScheduled() {
-        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 루팅 상태 및 조건부 ADB 처리 예정")
+        updateMainLaunch(MAIN_LAUNCH_SCHEDULED, "약 10초 뒤 탈옥 상태 및 조건부 ADB 처리 예정")
         Log.i(LOG_TAG, "Root state check and conditional ADB handling scheduled after boot delay")
     }
 

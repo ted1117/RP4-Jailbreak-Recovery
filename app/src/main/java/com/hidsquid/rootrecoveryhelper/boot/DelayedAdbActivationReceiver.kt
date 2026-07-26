@@ -32,7 +32,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 routeDelayedDialog(appContext, diagnostics)
             } catch (exception: Exception) {
                 diagnostics.recordMainLaunchSkipped(
-                    "루팅 상태 검사 또는 조건부 ADB 처리 예외로 Dialog 실행 안 함",
+                    "탈옥 상태 검사 또는 조건부 ADB 처리 예외로 Dialog 실행 안 함",
                 )
                 diagnostics.recordCheckStage(
                     BootDiagnostics.STAGE_CHECK_ERROR,
@@ -48,16 +48,18 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         context: Context,
         diagnostics: BootDiagnostics,
     ) {
-        val pendingLsposedSetup = RecoveryPreferences(context).pendingLsposedSetup
+        val recoveryPreferences = RecoveryPreferences(context)
+        val pendingLsposedSetup = recoveryPreferences.pendingLsposedSetup
+        val ignoreRecoveryDialogsForever = recoveryPreferences.ignoreRecoveryDialogsForever
         val forceAdbAlways = DiagnosticsSettings(context).forceAdbAlways
         diagnostics.recordCheckStage(
             BootDiagnostics.STAGE_CHECKING_MODULE,
-            "LSPosed disable 파일과 Zygisk 설정 확인 후 ADB 활성화 조건을 판정",
+            "LSPosed 모듈 활성화 상태와 Zygisk 설정 확인 후 ADB 활성화 조건을 판정",
         )
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),
         ).runDelayedBootActions(
-            forceAdbForDialog = pendingLsposedSetup,
+            forceAdbForDialog = pendingLsposedSetup && !ignoreRecoveryDialogsForever,
             forceAdbAlways = forceAdbAlways,
         )
         diagnostics.recordAdbDiagnostics(check.adbDiagnostics)
@@ -65,6 +67,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
             pendingLsposedSetup = pendingLsposedSetup,
             lsposedModuleState = check.moduleState,
             zygiskState = check.zygiskState,
+            ignoreRecoveryDialogsForever = ignoreRecoveryDialogsForever,
         )
 
         when (target) {
@@ -72,7 +75,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
                 context = context,
                 diagnostics = diagnostics,
                 dialogActivity = RootRecoveryActivity::class.java,
-                description = "루팅 해제 감지 Dialog",
+                description = "탈옥 해제 감지 Dialog",
                 checkDetail = check.detail,
             )
             DelayedDialogTarget.LSPOSED_SETUP -> launchDialog(

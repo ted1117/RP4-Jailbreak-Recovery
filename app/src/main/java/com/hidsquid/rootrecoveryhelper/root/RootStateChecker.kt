@@ -123,10 +123,7 @@ class RootStateChecker(
                 append(", 검증 adb_enabled=$afterAdbEnabled, adbd=$afterAdbdState, ")
                 append("ro.adb.secure=$afterRoAdbSecure, ")
                 append(
-                    "disable 검사 exit=$moduleLsExit" +
-                        moduleLsOutput.takeIf { it.isNotBlank() }
-                            ?.let { ", 출력=$it" }
-                            .orEmpty() +
+                    "모듈 활성화 상태 검사 exit=$moduleLsExit" +
                         ", Zygisk 검사 exit=$zygiskQueryExit" +
                         ", 판정=${zygiskState.name}" +
                         zygiskQueryOutput.takeIf { it.isNotBlank() }

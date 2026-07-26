@@ -14,7 +14,9 @@ object DelayedDialogTargetResolver {
         pendingLsposedSetup: Boolean,
         lsposedModuleState: LsposedModuleState,
         zygiskState: ZygiskState,
+        ignoreRecoveryDialogsForever: Boolean = false,
     ): DelayedDialogTarget = when {
+        ignoreRecoveryDialogsForever -> DelayedDialogTarget.NONE
         lsposedModuleState == LsposedModuleState.DISABLED ||
             zygiskState == ZygiskState.DISABLED ->
             DelayedDialogTarget.ROOT_RECOVERY
