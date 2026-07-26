@@ -11,7 +11,6 @@ import android.widget.Toast
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnosticsSnapshot
 import com.hidsquid.rootrecoveryhelper.diagnostics.SharedBootLogStorage
-import com.hidsquid.rootrecoveryhelper.root.AdbActivationReason
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
@@ -29,7 +28,6 @@ class MainActivity : Activity() {
     private var rootCheckStarted = false
 
     private lateinit var statusText: TextView
-    private lateinit var adbTestStatusText: TextView
     private lateinit var moduleStatusText: TextView
     private lateinit var bootDiagnosticsContainer: View
     private lateinit var bootDiagnosticsText: TextView
@@ -45,7 +43,6 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.statusText)
-        adbTestStatusText = findViewById(R.id.adbTestStatusText)
         moduleStatusText = findViewById(R.id.moduleStatusText)
         bootDiagnosticsContainer = findViewById(R.id.bootDiagnosticsContainer)
         bootDiagnosticsText = findViewById(R.id.bootDiagnosticsText)
@@ -127,20 +124,11 @@ class MainActivity : Activity() {
             )
             if (!check.hasRootAccess) {
                 statusText.setText(R.string.root_required)
-                adbTestStatusText.setText(R.string.adb_test_mode_root_unavailable)
                 renderBootDiagnostics()
                 return@launch
             }
 
             statusText.setText(R.string.setup_complete)
-            adbTestStatusText.setText(
-                when {
-                    check.adbActivationReason == AdbActivationReason.NORMAL ->
-                        R.string.adb_test_mode_not_needed
-                    check.adbEnabled -> R.string.adb_test_mode_enabled
-                    else -> R.string.adb_test_mode_failed
-                },
-            )
             val moduleStatusResource = when {
                 check.moduleState == LsposedModuleState.DISABLED ||
                     check.zygiskState == ZygiskState.DISABLED ->

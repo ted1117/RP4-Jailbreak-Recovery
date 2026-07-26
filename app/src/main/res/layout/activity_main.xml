@@ -30,15 +30,6 @@
             android:textAppearance="@android:style/TextAppearance.Material.Body1" />
 
         <TextView
-            android:id="@+id/adbTestStatusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:lineSpacingExtra="4dp"
-            android:text="@string/adb_test_mode_waiting"
-            android:textAppearance="@android:style/TextAppearance.Material.Body2" />
-
-        <TextView
             android:id="@+id/moduleStatusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

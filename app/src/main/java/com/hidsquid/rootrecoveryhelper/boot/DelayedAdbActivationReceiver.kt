@@ -52,7 +52,7 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         val forceAdbAlways = DiagnosticsSettings(context).forceAdbAlways
         diagnostics.recordCheckStage(
             BootDiagnostics.STAGE_CHECKING_MODULE,
-            "LSPosed disable 파일과 Zygisk 설정 확인 후 ADB 활성화 조건을 판정",
+            "LSPosed 모듈 활성화 상태와 Zygisk 설정 확인 후 ADB 활성화 조건을 판정",
         )
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),
