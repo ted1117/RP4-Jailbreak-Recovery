@@ -3,8 +3,8 @@ package com.hidsquid.rootrecoveryhelper
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Button
 import android.widget.Switch
+import android.widget.Toolbar
 import android.widget.Toast
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
 import com.hidsquid.rootrecoveryhelper.diagnostics.SharedBootLogStorage
@@ -17,6 +17,10 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+
+        findViewById<Toolbar>(R.id.topAppBar).setNavigationOnClickListener {
+            finish()
+        }
 
         findViewById<Switch>(R.id.showBootDiagnosticsSwitch).apply {
             isChecked = settings.showBootDiagnostics
@@ -37,9 +41,6 @@ class SettingsActivity : Activity() {
             setOnCheckedChangeListener { _, isChecked ->
                 settings.forceAdbAlways = isChecked
             }
-        }
-        findViewById<Button>(R.id.closeSettingsButton).setOnClickListener {
-            finish()
         }
     }
 

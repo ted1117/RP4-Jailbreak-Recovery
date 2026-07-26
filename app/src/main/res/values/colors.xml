@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="launcher_background">#455A64</color>
+    <color name="settings_text_primary">#212121</color>
+    <color name="settings_text_secondary">#757575</color>
+    <color name="settings_divider">#E0E0E0</color>
+    <color name="settings_group_background">#FFFFFFFF</color>
+    <color name="settings_group_stroke">#E0E0E0</color>
+    <color name="settings_switch_thumb">#FFFFFFFF</color>
+    <color name="settings_switch_stroke">#FF000000</color>
+    <color name="settings_switch_track_on">#FF000000</color>
+    <color name="settings_switch_track_off">#FFDDDDDD</color>
 </resources>

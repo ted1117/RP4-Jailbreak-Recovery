@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
@@ -46,7 +47,7 @@ class MainActivity : Activity() {
         moduleStatusText = findViewById(R.id.moduleStatusText)
         bootDiagnosticsContainer = findViewById(R.id.bootDiagnosticsContainer)
         bootDiagnosticsText = findViewById(R.id.bootDiagnosticsText)
-        findViewById<Button>(R.id.settingsButton).setOnClickListener {
+        findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
         findViewById<Button>(R.id.refreshDiagnosticsButton).setOnClickListener {

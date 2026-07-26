@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="settings_screen_padding_top">24dp</dimen>
+    <dimen name="settings_section_spacing">16dp</dimen>
+    <dimen name="settings_group_padding_vertical">4dp</dimen>
+    <dimen name="settings_row_padding_vertical">12dp</dimen>
+    <dimen name="settings_row_body_margin_top">6dp</dimen>
+    <dimen name="settings_group_corner_radius">12dp</dimen>
+    <dimen name="settings_group_stroke_width">1dp</dimen>
+</resources>
