@@ -14,7 +14,6 @@
         android:paddingBottom="32dp">
 
         <TextView
-            android:id="@+id/titleText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/main_title"
@@ -47,30 +46,47 @@
             android:lineSpacingExtra="4dp"
             android:textAppearance="@android:style/TextAppearance.Material.Body2" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:text="@string/boot_diagnostics_title"
-            android:textAppearance="@android:style/TextAppearance.Material.Title"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/bootDiagnosticsText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:lineSpacingExtra="4dp"
-            android:text="@string/boot_diagnostics_no_record"
-            android:textAppearance="@android:style/TextAppearance.Material.Body2"
-            android:textIsSelectable="true" />
-
         <Button
-            android:id="@+id/refreshDiagnosticsButton"
+            android:id="@+id/settingsButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/boot_diagnostics_refresh" />
+            android:layout_gravity="end"
+            android:layout_marginTop="24dp"
+            android:text="@string/settings_title" />
+
+        <LinearLayout
+            android:id="@+id/bootDiagnosticsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="@string/boot_diagnostics_title"
+                android:textAppearance="@android:style/TextAppearance.Material.Title"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/bootDiagnosticsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="4dp"
+                android:text="@string/boot_diagnostics_no_record"
+                android:textAppearance="@android:style/TextAppearance.Material.Body2"
+                android:textIsSelectable="true" />
+
+            <Button
+                android:id="@+id/refreshDiagnosticsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/boot_diagnostics_refresh" />
+
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
