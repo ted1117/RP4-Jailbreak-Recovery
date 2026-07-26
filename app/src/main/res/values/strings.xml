@@ -48,13 +48,13 @@
     <string name="boot_diagnostics_stage_auto_recovery_reboot">재활성화 후 재부팅 대기 중</string>
     <string name="boot_diagnostics_hint_in_progress">부팅 검사가 진행 중일 수 있으므로 잠시 뒤 새로고침하세요.</string>
 
-    <string name="root_recovery_title">루팅 해제가 감지되었습니다!</string>
-    <string name="root_recovery_message">필수 모듈 또는 Zygisk 비활성화가 감지되었습니다. 자동으로 루팅을 복구합니다.</string>
-    <string name="start_root_recovery">루팅 복구</string>
+    <string name="root_recovery_title"><b>루팅 비활성화 감지</b></string>
+    <string name="root_recovery_message">Magisk 모듈과 Zygisk를 재활성화할까요?</string>
+    <string name="start_root_recovery">재활성화</string>
     <string name="ignore_root_recovery">무시</string>
-    <string name="lsposed_setup_title">추가 설정이 필요합니다</string>
-    <string name="lsposed_setup_message">LSPosed Manager에서 모듈을 활성화해 주세요.</string>
-    <string name="open_lsposed_manager">LSPosed Manager로 이동</string>
+    <string name="lsposed_setup_title">LSPosed</string>
+    <string name="lsposed_setup_message"><b>리페4 새로고침</b> 또는 <b>RP4Posed</b>를 활성화하고\n재부팅하세요.</string>
+    <string name="open_lsposed_manager">LSPosed로 이동</string>
     <string name="lsposed_manager_not_found">LSPosed Manager 앱을 찾을 수 없습니다.</string>
 
     <string name="auto_recovery_title">필수 모듈 재활성화</string>

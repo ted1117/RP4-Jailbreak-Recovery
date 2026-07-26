@@ -38,6 +38,9 @@ class RootRecoveryActivity : Activity() {
                         finish()
                     }
                 }
+                setOnShowListener {
+                    RecoveryDialogStyler.apply(this)
+                }
                 show()
             }
     }
