@@ -21,6 +21,12 @@ class DiagnosticsSettings(context: Context) {
             commitBoolean(KEY_SAVE_RECENT_BOOT_LOGS, value)
         }
 
+    var forceAdbAlways: Boolean
+        get() = preferences.getBoolean(KEY_FORCE_ADB_ALWAYS, false)
+        set(value) {
+            commitBoolean(KEY_FORCE_ADB_ALWAYS, value)
+        }
+
     @SuppressLint("ApplySharedPref")
     private fun commitBoolean(key: String, value: Boolean) {
         preferences.edit().putBoolean(key, value).commit()
@@ -30,5 +36,6 @@ class DiagnosticsSettings(context: Context) {
         private const val PREFERENCES_NAME = "diagnostics_settings"
         private const val KEY_SHOW_BOOT_DIAGNOSTICS = "show_boot_diagnostics"
         private const val KEY_SAVE_RECENT_BOOT_LOGS = "save_recent_boot_logs"
+        private const val KEY_FORCE_ADB_ALWAYS = "force_adb_always"
     }
 }

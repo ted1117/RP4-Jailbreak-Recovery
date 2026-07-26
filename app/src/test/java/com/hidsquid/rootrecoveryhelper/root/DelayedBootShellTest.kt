@@ -75,6 +75,22 @@ class DelayedBootShellTest {
         assertForcedAdbCalls(execution.calls, expected = true)
     }
 
+    @Test
+    fun `always-on setting enables ADB in an otherwise normal state`() {
+        val execution = runShell(
+            moduleExit = 1,
+            moduleOutput = "ls: disable: No such file or directory",
+            zygiskExit = 0,
+            zygiskOutput = "zygisk_enabled=1",
+            forceAdbAlways = true,
+        )
+
+        val result = parse(execution)
+
+        assertEquals(AdbActivationReason.SETTING_ENABLED, result.adbActivationReason)
+        assertForcedAdbCalls(execution.calls, expected = true)
+    }
+
     private fun parse(execution: ShellExecution): DelayedBootCheckResult = runBlocking {
         RootStateChecker(
             object : RootCommandRunner {
@@ -108,6 +124,7 @@ class DelayedBootShellTest {
         zygiskExit: Int,
         zygiskOutput: String,
         forceAdbForDialog: Boolean = false,
+        forceAdbAlways: Boolean = false,
     ): ShellExecution {
         val stubDirectory = Files.createTempDirectory("root-recovery-shell-test")
         return try {
@@ -119,6 +136,7 @@ class DelayedBootShellTest {
                 RootStateChecker.buildDelayedBootCommand(
                     moduleLsCommand = "ls",
                     forceAdbForDialog = forceAdbForDialog,
+                    forceAdbAlways = forceAdbAlways,
                 ),
             )
                 .redirectErrorStream(true)

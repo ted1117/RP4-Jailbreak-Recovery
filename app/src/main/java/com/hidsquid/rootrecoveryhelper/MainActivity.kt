@@ -122,7 +122,9 @@ class MainActivity : Activity() {
         moduleStatusText.text = ""
 
         activityScope.launch {
-            val check = stateChecker.runDelayedBootActions()
+            val check = stateChecker.runDelayedBootActions(
+                forceAdbAlways = diagnosticsSettings.forceAdbAlways,
+            )
             if (!check.hasRootAccess) {
                 statusText.setText(R.string.root_required)
                 adbTestStatusText.setText(R.string.adb_test_mode_root_unavailable)

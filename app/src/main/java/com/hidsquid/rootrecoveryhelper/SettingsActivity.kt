@@ -32,6 +32,12 @@ class SettingsActivity : Activity() {
                 updateBootLogStorage(isChecked)
             }
         }
+        findViewById<Switch>(R.id.forceAdbAlwaysSwitch).apply {
+            isChecked = settings.forceAdbAlways
+            setOnCheckedChangeListener { _, isChecked ->
+                settings.forceAdbAlways = isChecked
+            }
+        }
         findViewById<Button>(R.id.closeSettingsButton).setOnClickListener {
             finish()
         }

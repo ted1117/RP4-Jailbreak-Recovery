@@ -11,6 +11,7 @@ import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
 import com.hidsquid.rootrecoveryhelper.root.ZygiskState
+import com.hidsquid.rootrecoveryhelper.storage.DiagnosticsSettings
 import com.hidsquid.rootrecoveryhelper.storage.RecoveryPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,13 +49,17 @@ class DelayedAdbActivationReceiver : BroadcastReceiver() {
         diagnostics: BootDiagnostics,
     ) {
         val pendingLsposedSetup = RecoveryPreferences(context).pendingLsposedSetup
+        val forceAdbAlways = DiagnosticsSettings(context).forceAdbAlways
         diagnostics.recordCheckStage(
             BootDiagnostics.STAGE_CHECKING_MODULE,
-            "LSPosed disable 파일과 Zygisk 설정 확인 후 Dialog 대상이면 ADB 활성화",
+            "LSPosed disable 파일과 Zygisk 설정 확인 후 ADB 활성화 조건을 판정",
         )
         val check = RootStateChecker(
             RootCommandExecutor(timeoutMillis = DETECTION_TIMEOUT_MILLIS),
-        ).runDelayedBootActions(forceAdbForDialog = pendingLsposedSetup)
+        ).runDelayedBootActions(
+            forceAdbForDialog = pendingLsposedSetup,
+            forceAdbAlways = forceAdbAlways,
+        )
         diagnostics.recordAdbDiagnostics(check.adbDiagnostics)
         val target = DelayedDialogTargetResolver.resolve(
             pendingLsposedSetup = pendingLsposedSetup,

@@ -16,6 +16,7 @@ enum class AdbActivationReason {
     RECOVERY_DETECTED,
     STATE_CHECK_FAILED,
     DIALOG_REQUIRED,
+    SETTING_ENABLED,
     NORMAL,
     NOT_RUN,
     UNKNOWN,
@@ -36,9 +37,13 @@ class RootStateChecker(
 ) {
     suspend fun runDelayedBootActions(
         forceAdbForDialog: Boolean = false,
+        forceAdbAlways: Boolean = false,
     ): DelayedBootCheckResult {
         val result = commandRunner.execute(
-            buildDelayedBootCommand(forceAdbForDialog = forceAdbForDialog),
+            buildDelayedBootCommand(
+                forceAdbForDialog = forceAdbForDialog,
+                forceAdbAlways = forceAdbAlways,
+            ),
         )
         if (result.timedOut) {
             return DelayedBootCheckResult(
@@ -164,6 +169,7 @@ class RootStateChecker(
         AdbActivationReason.RECOVERY_DETECTED.name -> AdbActivationReason.RECOVERY_DETECTED
         AdbActivationReason.STATE_CHECK_FAILED.name -> AdbActivationReason.STATE_CHECK_FAILED
         AdbActivationReason.DIALOG_REQUIRED.name -> AdbActivationReason.DIALOG_REQUIRED
+        AdbActivationReason.SETTING_ENABLED.name -> AdbActivationReason.SETTING_ENABLED
         AdbActivationReason.NORMAL.name -> AdbActivationReason.NORMAL
         else -> AdbActivationReason.UNKNOWN
     }
@@ -234,6 +240,7 @@ class RootStateChecker(
         internal fun buildDelayedBootCommand(
             moduleLsCommand: String = "/system/bin/ls",
             forceAdbForDialog: Boolean = false,
+            forceAdbAlways: Boolean = false,
         ): String = """
             root_uid="${'$'}(id -u 2>/dev/null)"
             echo "ROOT_UID=${'$'}root_uid"
@@ -262,6 +269,7 @@ class RootStateChecker(
             recovery_detected=0
             state_check_failed=0
             force_adb_for_dialog=${if (forceAdbForDialog) 1 else 0}
+            force_adb_always=${if (forceAdbAlways) 1 else 0}
             zygisk_state="UNKNOWN"
             if [ "${'$'}module_ls_exit" -eq 0 ]; then
                 recovery_detected=1
@@ -288,7 +296,9 @@ class RootStateChecker(
             fi
             echo "ZYGISK_STATE=${'$'}zygisk_state"
 
-            if [ "${'$'}recovery_detected" -eq 1 ]; then
+            if [ "${'$'}force_adb_always" -eq 1 ]; then
+                adb_activation_reason="SETTING_ENABLED"
+            elif [ "${'$'}recovery_detected" -eq 1 ]; then
                 adb_activation_reason="RECOVERY_DETECTED"
             elif [ "${'$'}state_check_failed" -eq 1 ]; then
                 adb_activation_reason="STATE_CHECK_FAILED"

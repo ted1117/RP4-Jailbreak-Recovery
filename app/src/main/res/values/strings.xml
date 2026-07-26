@@ -19,6 +19,8 @@
     <string name="show_boot_diagnostics_summary">메인 화면에 마지막 부팅의 상세 진단 내용을 표시합니다.</string>
     <string name="save_recent_boot_logs">최근 3회 부팅 로그 저장</string>
     <string name="save_recent_boot_logs_summary">정상 또는 루팅 해제 여부와 관계없이 /storage/emulated/0/RootRecoveryHelper/boot_logs에 보관합니다. 파일명은 YYYY-MM-DD-HH-mm-ss.log 형식입니다. 끄면 기존 로그는 유지하고 새 기록만 중단합니다.</string>
+    <string name="force_adb_always">ADB 무조건 활성화</string>
+    <string name="force_adb_always_summary">부팅 후 루팅 상태와 관계없이 ADB를 활성화합니다. 루트 권한이 필요하며 기본값은 꺼짐입니다.</string>
     <string name="boot_log_storage_permission_denied">내장 메모리 저장 권한이 없어 부팅 로그 저장을 껐습니다.</string>
     <string name="boot_log_storage_unavailable">내장 메모리의 부팅 로그 폴더를 준비하지 못했습니다. 다음 실행 때 다시 시도합니다.</string>
     <string name="close_settings">완료</string>

@@ -48,6 +48,20 @@
             android:text="@string/save_recent_boot_logs_summary"
             android:textAppearance="@android:style/TextAppearance.Material.Body2" />
 
+        <Switch
+            android:id="@+id/forceAdbAlwaysSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="@string/force_adb_always" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/force_adb_always_summary"
+            android:textAppearance="@android:style/TextAppearance.Material.Body2" />
+
         <Button
             android:id="@+id/closeSettingsButton"
             android:layout_width="wrap_content"
