@@ -48,13 +48,13 @@
     <string name="boot_diagnostics_stage_auto_recovery_reboot">재활성화 후 재부팅 대기 중</string>
     <string name="boot_diagnostics_hint_in_progress">부팅 검사가 진행 중일 수 있으므로 잠시 뒤 새로고침하세요.</string>
 
-    <string name="root_recovery_title"><b>탈옥 비활성화 감지</b></string>
+    <string name="root_recovery_title"><b>탈옥 해제 감지</b></string>
     <string name="root_recovery_message">Magisk 모듈과 Zygisk를 재활성화할까요?</string>
     <string name="start_root_recovery">재활성화</string>
     <string name="ignore_root_recovery">무시</string>
     <string name="ignore_root_recovery_forever">영원히 무시하기</string>
-    <string name="ignore_root_recovery_confirmation_title">탈옥 복구를 정말 하지 않을까요?</string>
-    <string name="ignore_root_recovery_confirmation_message">앞으로 탈옥 해제가 감지되어도 복구 다이얼로그를 표시하지 않습니다.</string>
+    <string name="ignore_root_recovery_confirmation_title"><b>정말 복구하지 않으시겠습니까?</b></string>
+    <string name="ignore_root_recovery_confirmation_message">앞으로 탈옥 해제가 감지되어도\n복구 다이얼로그를 표시하지 않습니다.</string>
     <string name="ignore_root_recovery_confirmation_no">안 해요</string>
     <string name="ignore_root_recovery_confirmation_recover">복구하기</string>
     <string name="lsposed_setup_title">LSPosed</string>
@@ -66,7 +66,7 @@
     <string name="auto_recovery_preparing">필수 모듈 재활성화 준비 중…</string>
     <string name="auto_recovery_complete_title">필수 모듈 재활성화 완료</string>
     <string name="auto_recovery_root_granted">루트 권한 확인 완료</string>
-    <string name="auto_recovery_root_denied">루트 권한이 없어 자동 복구할 수 없습니다.</string>
+    <string name="auto_recovery_root_denied">루트 권한이 없어 자동으로 복구할 수 없습니다.</string>
     <string name="auto_recovery_adb_enabled">ADB 활성화 성공</string>
     <string name="auto_recovery_adb_failed">ADB 활성화 실패</string>
     <string name="auto_recovery_processing_module">모듈 재활성화 중: %1$s</string>
