@@ -1,14 +1,22 @@
 package com.hidsquid.rootrecoveryhelper
 
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnosticsSnapshot
+import com.hidsquid.rootrecoveryhelper.diagnostics.SharedBootLogStorage
+import com.hidsquid.rootrecoveryhelper.root.AdbActivationReason
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
+import com.hidsquid.rootrecoveryhelper.root.ZygiskState
+import com.hidsquid.rootrecoveryhelper.storage.DiagnosticsSettings
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.MainScope
@@ -18,13 +26,16 @@ import kotlinx.coroutines.launch
 class MainActivity : Activity() {
     private val activityScope = MainScope()
     private val stateChecker = RootStateChecker(RootCommandExecutor())
+    private var rootCheckStarted = false
 
     private lateinit var statusText: TextView
     private lateinit var adbTestStatusText: TextView
     private lateinit var moduleStatusText: TextView
+    private lateinit var bootDiagnosticsContainer: View
     private lateinit var bootDiagnosticsText: TextView
 
     private val bootDiagnostics by lazy { BootDiagnostics(applicationContext) }
+    private val diagnosticsSettings by lazy { DiagnosticsSettings(applicationContext) }
     private val dateFormat by lazy {
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
     }
@@ -36,25 +47,84 @@ class MainActivity : Activity() {
         statusText = findViewById(R.id.statusText)
         adbTestStatusText = findViewById(R.id.adbTestStatusText)
         moduleStatusText = findViewById(R.id.moduleStatusText)
+        bootDiagnosticsContainer = findViewById(R.id.bootDiagnosticsContainer)
         bootDiagnosticsText = findViewById(R.id.bootDiagnosticsText)
+        findViewById<Button>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         findViewById<Button>(R.id.refreshDiagnosticsButton).setOnClickListener {
             renderBootDiagnostics()
         }
+        updateDiagnosticsVisibility()
         renderBootDiagnostics()
-        checkRootAndModuleState()
+        if (!requestBootLogPermissionsIfNeeded()) {
+            continueStartup()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        updateDiagnosticsVisibility()
         renderBootDiagnostics()
     }
 
+    private fun updateDiagnosticsVisibility() {
+        if (!::bootDiagnosticsContainer.isInitialized) {
+            return
+        }
+        bootDiagnosticsContainer.visibility = if (diagnosticsSettings.showBootDiagnostics) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
+    private fun requestBootLogPermissionsIfNeeded(): Boolean {
+        if (
+            !diagnosticsSettings.saveRecentBootLogs ||
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        ) {
+            return false
+        }
+        requestPermissions(
+            SharedBootLogStorage.requiredPermissions,
+            BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE,
+        )
+        return true
+    }
+
+    private fun continueStartup() {
+        if (
+            diagnosticsSettings.saveRecentBootLogs &&
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        ) {
+            if (!bootDiagnostics.prepareSharedLogStorage()) {
+                showBootLogStorageUnavailable()
+            }
+        }
+        checkRootAndModuleState()
+    }
+
+    private fun showBootLogStorageUnavailable() {
+        Toast.makeText(
+            this,
+            R.string.boot_log_storage_unavailable,
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
     private fun checkRootAndModuleState() {
+        if (rootCheckStarted) {
+            return
+        }
+        rootCheckStarted = true
         statusText.setText(R.string.root_checking)
         moduleStatusText.text = ""
 
         activityScope.launch {
-            val check = stateChecker.runDelayedBootActions()
+            val check = stateChecker.runDelayedBootActions(
+                forceAdbAlways = diagnosticsSettings.forceAdbAlways,
+            )
             if (!check.hasRootAccess) {
                 statusText.setText(R.string.root_required)
                 adbTestStatusText.setText(R.string.adb_test_mode_root_unavailable)
@@ -64,16 +134,21 @@ class MainActivity : Activity() {
 
             statusText.setText(R.string.setup_complete)
             adbTestStatusText.setText(
-                if (check.adbEnabled) {
-                    R.string.adb_test_mode_enabled
-                } else {
-                    R.string.adb_test_mode_failed
+                when {
+                    check.adbActivationReason == AdbActivationReason.NORMAL ->
+                        R.string.adb_test_mode_not_needed
+                    check.adbEnabled -> R.string.adb_test_mode_enabled
+                    else -> R.string.adb_test_mode_failed
                 },
             )
-            val moduleStatusResource = when (check.moduleState) {
-                LsposedModuleState.DISABLED -> R.string.module_state_disabled
-                LsposedModuleState.ENABLED -> R.string.module_state_normal
-                LsposedModuleState.UNKNOWN -> R.string.module_state_unknown
+            val moduleStatusResource = when {
+                check.moduleState == LsposedModuleState.DISABLED ||
+                    check.zygiskState == ZygiskState.DISABLED ->
+                    R.string.module_state_disabled
+                check.moduleState == LsposedModuleState.UNKNOWN ||
+                    check.zygiskState == ZygiskState.UNKNOWN ->
+                    R.string.module_state_unknown
+                else -> R.string.module_state_normal
             }
             moduleStatusText.setText(moduleStatusResource)
             renderBootDiagnostics()
@@ -81,7 +156,11 @@ class MainActivity : Activity() {
     }
 
     private fun renderBootDiagnostics() {
-        if (!::bootDiagnosticsText.isInitialized) {
+        if (
+            !::bootDiagnosticsContainer.isInitialized ||
+            !::bootDiagnosticsText.isInitialized ||
+            bootDiagnosticsContainer.visibility != View.VISIBLE
+        ) {
             return
         }
 
@@ -94,6 +173,12 @@ class MainActivity : Activity() {
         val launchDescription = describeMainLaunch(snapshot)
         val stageDescription = describeCheckStage(snapshot.checkStage)
         val detail = snapshot.checkDetail.ifBlank {
+            getString(R.string.boot_diagnostics_detail_empty)
+        }
+        val adbDiagnostics = snapshot.adbDiagnostics.ifBlank {
+            getString(R.string.boot_diagnostics_detail_empty)
+        }
+        val adbDiagnosticsHistory = snapshot.adbDiagnosticsHistory.ifBlank {
             getString(R.string.boot_diagnostics_detail_empty)
         }
         val interpretation = buildString {
@@ -122,6 +207,8 @@ class MainActivity : Activity() {
             launchDescription,
             stageDescription,
             detail,
+            adbDiagnostics,
+            adbDiagnosticsHistory,
             interpretation,
         )
     }
@@ -153,9 +240,6 @@ class MainActivity : Activity() {
         BootDiagnostics.STAGE_BOOT_RECEIVED -> getString(
             R.string.boot_diagnostics_stage_boot_received,
         )
-        BootDiagnostics.STAGE_CHECKING_ROOT -> getString(
-            R.string.boot_diagnostics_stage_checking_root,
-        )
         BootDiagnostics.STAGE_ROOT_UNAVAILABLE -> getString(
             R.string.boot_diagnostics_stage_root_unavailable,
         )
@@ -165,33 +249,27 @@ class MainActivity : Activity() {
         BootDiagnostics.STAGE_ADB_SCHEDULE_FAILED -> getString(
             R.string.boot_diagnostics_stage_adb_schedule_failed,
         )
-        BootDiagnostics.STAGE_ENABLING_ADB -> getString(
-            R.string.boot_diagnostics_stage_enabling_adb,
-        )
         BootDiagnostics.STAGE_CHECKING_MODULE -> getString(
             R.string.boot_diagnostics_stage_checking_module,
         )
         BootDiagnostics.STAGE_MODULE_CHECK_FAILED -> getString(
             R.string.boot_diagnostics_stage_module_failed,
         )
-        BootDiagnostics.STAGE_LSPOSED_DISABLED -> getString(
-            R.string.boot_diagnostics_stage_disabled,
-        )
-        BootDiagnostics.STAGE_LSPOSED_REENABLED -> getString(
-            R.string.boot_diagnostics_stage_reenabled,
-        )
         BootDiagnostics.STAGE_NORMAL -> getString(R.string.boot_diagnostics_stage_normal)
         BootDiagnostics.STAGE_CHECK_ERROR -> getString(
             R.string.boot_diagnostics_stage_error,
         )
-        BootDiagnostics.STAGE_DELAYED_ADB_CHECKING_ROOT -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_root,
+        BootDiagnostics.STAGE_AUTO_RECOVERY_LAUNCH -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_launch,
         )
-        BootDiagnostics.STAGE_DELAYED_ADB_ROOT_UNAVAILABLE -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_unavailable,
+        BootDiagnostics.STAGE_AUTO_RECOVERY_RUNNING -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_running,
         )
-        BootDiagnostics.STAGE_DELAYED_ADB_RESULT -> getString(
-            R.string.boot_diagnostics_stage_delayed_adb_result,
+        BootDiagnostics.STAGE_AUTO_RECOVERY_RESULT -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_result,
+        )
+        BootDiagnostics.STAGE_AUTO_RECOVERY_REBOOT -> getString(
+            R.string.boot_diagnostics_stage_auto_recovery_reboot,
         )
         else -> getString(R.string.boot_diagnostics_stage_not_recorded)
     }
@@ -203,8 +281,36 @@ class MainActivity : Activity() {
             getString(R.string.boot_diagnostics_detail_empty)
         }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE) {
+            return
+        }
+
+        val granted = grantResults.isNotEmpty() &&
+            grantResults.all { it == PackageManager.PERMISSION_GRANTED } &&
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        if (!granted) {
+            diagnosticsSettings.saveRecentBootLogs = false
+            Toast.makeText(
+                this,
+                R.string.boot_log_storage_permission_denied,
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+        continueStartup()
+    }
+
     override fun onDestroy() {
         activityScope.cancel()
         super.onDestroy()
+    }
+
+    companion object {
+        private const val BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE = 7101
     }
 }
