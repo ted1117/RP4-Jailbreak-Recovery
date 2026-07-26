@@ -3,6 +3,7 @@ package com.hidsquid.rootrecoveryhelper.diagnostics
 object AdbDiagnosticsHistory {
     fun append(
         history: String,
+        bootSequence: Long,
         bootReceivedAtMillis: Long,
         recordedAtMillis: Long,
         diagnostics: String,
@@ -12,10 +13,15 @@ object AdbDiagnosticsHistory {
             return history
         }
 
-        val bootId = bootReceivedAtMillis.takeIf { it > 0L } ?: recordedAtMillis
+        val bootId = bootSequence.takeIf { it > 0L }
+            ?: bootReceivedAtMillis.takeIf { it > 0L }
+            ?: recordedAtMillis
         val newEntry = buildString {
             append(BOOT_ID_PREFIX)
             append(bootId)
+            append('\n')
+            append("BOOT_RECEIVED_AT=")
+            append(bootReceivedAtMillis)
             append('\n')
             append("RECORDED_AT=")
             append(recordedAtMillis)
@@ -40,7 +46,7 @@ object AdbDiagnosticsHistory {
         ?.substringAfter('=')
         ?.toLongOrNull()
 
-    private const val BOOT_ID_PREFIX = "BOOT_RECEIVED_AT="
+    private const val BOOT_ID_PREFIX = "BOOT_SEQUENCE="
     private const val ENTRY_SEPARATOR = "\n\n===== PREVIOUS_BOOT =====\n\n"
-    private const val DEFAULT_MAX_ENTRIES = 5
+    private const val DEFAULT_MAX_ENTRIES = 3
 }

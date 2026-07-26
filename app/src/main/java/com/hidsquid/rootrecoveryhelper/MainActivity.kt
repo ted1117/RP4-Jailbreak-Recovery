@@ -1,16 +1,22 @@
 package com.hidsquid.rootrecoveryhelper
 
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnostics
 import com.hidsquid.rootrecoveryhelper.diagnostics.BootDiagnosticsSnapshot
+import com.hidsquid.rootrecoveryhelper.diagnostics.SharedBootLogStorage
 import com.hidsquid.rootrecoveryhelper.root.AdbActivationReason
 import com.hidsquid.rootrecoveryhelper.root.LsposedModuleState
 import com.hidsquid.rootrecoveryhelper.root.RootCommandExecutor
 import com.hidsquid.rootrecoveryhelper.root.RootStateChecker
 import com.hidsquid.rootrecoveryhelper.root.ZygiskState
+import com.hidsquid.rootrecoveryhelper.storage.DiagnosticsSettings
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.MainScope
@@ -20,13 +26,16 @@ import kotlinx.coroutines.launch
 class MainActivity : Activity() {
     private val activityScope = MainScope()
     private val stateChecker = RootStateChecker(RootCommandExecutor())
+    private var rootCheckStarted = false
 
     private lateinit var statusText: TextView
     private lateinit var adbTestStatusText: TextView
     private lateinit var moduleStatusText: TextView
+    private lateinit var bootDiagnosticsContainer: View
     private lateinit var bootDiagnosticsText: TextView
 
     private val bootDiagnostics by lazy { BootDiagnostics(applicationContext) }
+    private val diagnosticsSettings by lazy { DiagnosticsSettings(applicationContext) }
     private val dateFormat by lazy {
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
     }
@@ -38,20 +47,77 @@ class MainActivity : Activity() {
         statusText = findViewById(R.id.statusText)
         adbTestStatusText = findViewById(R.id.adbTestStatusText)
         moduleStatusText = findViewById(R.id.moduleStatusText)
+        bootDiagnosticsContainer = findViewById(R.id.bootDiagnosticsContainer)
         bootDiagnosticsText = findViewById(R.id.bootDiagnosticsText)
+        findViewById<Button>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         findViewById<Button>(R.id.refreshDiagnosticsButton).setOnClickListener {
             renderBootDiagnostics()
         }
+        updateDiagnosticsVisibility()
         renderBootDiagnostics()
-        checkRootAndModuleState()
+        if (!requestBootLogPermissionsIfNeeded()) {
+            continueStartup()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        updateDiagnosticsVisibility()
         renderBootDiagnostics()
     }
 
+    private fun updateDiagnosticsVisibility() {
+        if (!::bootDiagnosticsContainer.isInitialized) {
+            return
+        }
+        bootDiagnosticsContainer.visibility = if (diagnosticsSettings.showBootDiagnostics) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
+    private fun requestBootLogPermissionsIfNeeded(): Boolean {
+        if (
+            !diagnosticsSettings.saveRecentBootLogs ||
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        ) {
+            return false
+        }
+        requestPermissions(
+            SharedBootLogStorage.requiredPermissions,
+            BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE,
+        )
+        return true
+    }
+
+    private fun continueStartup() {
+        if (
+            diagnosticsSettings.saveRecentBootLogs &&
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        ) {
+            if (!bootDiagnostics.prepareSharedLogStorage()) {
+                showBootLogStorageUnavailable()
+            }
+        }
+        checkRootAndModuleState()
+    }
+
+    private fun showBootLogStorageUnavailable() {
+        Toast.makeText(
+            this,
+            R.string.boot_log_storage_unavailable,
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
     private fun checkRootAndModuleState() {
+        if (rootCheckStarted) {
+            return
+        }
+        rootCheckStarted = true
         statusText.setText(R.string.root_checking)
         moduleStatusText.text = ""
 
@@ -88,7 +154,11 @@ class MainActivity : Activity() {
     }
 
     private fun renderBootDiagnostics() {
-        if (!::bootDiagnosticsText.isInitialized) {
+        if (
+            !::bootDiagnosticsContainer.isInitialized ||
+            !::bootDiagnosticsText.isInitialized ||
+            bootDiagnosticsContainer.visibility != View.VISIBLE
+        ) {
             return
         }
 
@@ -209,8 +279,36 @@ class MainActivity : Activity() {
             getString(R.string.boot_diagnostics_detail_empty)
         }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE) {
+            return
+        }
+
+        val granted = grantResults.isNotEmpty() &&
+            grantResults.all { it == PackageManager.PERMISSION_GRANTED } &&
+            SharedBootLogStorage.hasRequiredPermissions(this)
+        if (!granted) {
+            diagnosticsSettings.saveRecentBootLogs = false
+            Toast.makeText(
+                this,
+                R.string.boot_log_storage_permission_denied,
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+        continueStartup()
+    }
+
     override fun onDestroy() {
         activityScope.cancel()
         super.onDestroy()
+    }
+
+    companion object {
+        private const val BOOT_LOG_STORAGE_PERMISSION_REQUEST_CODE = 7101
     }
 }

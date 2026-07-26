@@ -2,8 +2,12 @@ package com.hidsquid.rootrecoveryhelper.diagnostics
 
 import android.content.Context
 import android.util.Log
+import com.hidsquid.rootrecoveryhelper.storage.DiagnosticsSettings
+import java.io.File
+import java.io.IOException
 
 data class BootDiagnosticsSnapshot(
+    val bootSequence: Long,
     val bootReceivedAtMillis: Long,
     val mainLaunchStatus: String,
     val mainLaunchDetail: String,
@@ -14,18 +18,44 @@ data class BootDiagnosticsSnapshot(
     val updatedAtMillis: Long,
 ) {
     val hasBootRecord: Boolean
-        get() = bootReceivedAtMillis > 0L
+        get() = bootSequence > 0L || bootReceivedAtMillis > 0L
 }
 
 class BootDiagnostics(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences(
+    private val appContext = context.applicationContext
+    private val preferences = appContext.getSharedPreferences(
         PREFERENCES_NAME,
         Context.MODE_PRIVATE,
+    )
+    private val settings = DiagnosticsSettings(appContext)
+    private val legacyBootLogDirectory = File(
+        appContext.filesDir,
+        BootLogStore.DIRECTORY_NAME,
     )
 
     fun recordBootReceived() {
         val now = System.currentTimeMillis()
+        val sharedBootSequence = if (settings.saveRecentBootLogs) {
+            latestSharedBootSequence()
+        } else {
+            0L
+        }
+        val currentBootSequence = preferences.getLong(KEY_BOOT_SEQUENCE, 0L)
+        val previousBootSequence = maxOf(
+            preferences.getLong(
+                KEY_LAST_ALLOCATED_BOOT_SEQUENCE,
+                currentBootSequence,
+            ),
+            sharedBootSequence,
+        )
+        val bootSequence = if (previousBootSequence in 1 until Long.MAX_VALUE) {
+            previousBootSequence + 1L
+        } else {
+            1L
+        }
         val saved = preferences.edit()
+            .putLong(KEY_BOOT_SEQUENCE, bootSequence)
+            .putLong(KEY_LAST_ALLOCATED_BOOT_SEQUENCE, bootSequence)
             .putLong(KEY_BOOT_RECEIVED_AT, now)
             .putString(KEY_MAIN_LAUNCH_STATUS, MAIN_LAUNCH_NOT_ATTEMPTED)
             .putString(KEY_MAIN_LAUNCH_DETAIL, "")
@@ -35,6 +65,29 @@ class BootDiagnostics(context: Context) {
             .putLong(KEY_UPDATED_AT, now)
             .commit()
         Log.i(LOG_TAG, "BOOT_COMPLETED received; diagnosticsSaved=$saved")
+        if (saved) {
+            startBootLog(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = now,
+                detail = "DIAGNOSTICS_SAVED=true",
+            )
+        }
+    }
+
+    fun prepareSharedLogStorage(): Boolean {
+        if (!settings.saveRecentBootLogs) {
+            return false
+        }
+        return runCatching {
+            sharedBootLogStore()
+            Log.i(
+                LOG_TAG,
+                "Shared boot log storage ready; " +
+                    SharedBootLogStorage.diagnosticSummary(appContext),
+            )
+        }.onFailure { exception ->
+            logBootStorageFailure("prepare", exception)
+        }.isSuccess
     }
 
     fun recordMainLaunchRequested() {
@@ -61,25 +114,38 @@ class BootDiagnostics(context: Context) {
 
     fun recordCheckStage(stage: String, detail: String = "") {
         val safeDetail = detail.take(MAX_DETAIL_LENGTH)
+        val now = System.currentTimeMillis()
         val saved = preferences.edit()
             .putString(KEY_CHECK_STAGE, stage)
             .putString(KEY_CHECK_DETAIL, safeDetail)
-            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            .putLong(KEY_UPDATED_AT, now)
             .commit()
         Log.i(LOG_TAG, "checkStage=$stage; detail=$safeDetail; diagnosticsSaved=$saved")
+        appendBootLog(
+            recordedAtMillis = now,
+            event = "CHECK_STAGE:$stage",
+            detail = safeDetail,
+        )
     }
 
     @Synchronized
     fun recordAdbDiagnostics(detail: String) {
         val safeDetail = detail.take(MAX_ADB_DIAGNOSTICS_LENGTH)
         val now = System.currentTimeMillis()
+        val bootSequence = preferences.getLong(KEY_BOOT_SEQUENCE, 0L)
         val bootReceivedAtMillis = preferences.getLong(KEY_BOOT_RECEIVED_AT, 0L)
-        val history = AdbDiagnosticsHistory.append(
-            history = preferences.getString(KEY_ADB_DIAGNOSTICS_HISTORY, "").orEmpty(),
-            bootReceivedAtMillis = bootReceivedAtMillis,
-            recordedAtMillis = now,
-            diagnostics = safeDetail,
-        )
+        val currentHistory = preferences.getString(KEY_ADB_DIAGNOSTICS_HISTORY, "").orEmpty()
+        val history = if (settings.saveRecentBootLogs) {
+            AdbDiagnosticsHistory.append(
+                history = currentHistory,
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = now,
+                diagnostics = safeDetail,
+            )
+        } else {
+            currentHistory
+        }
         val saved = preferences.edit()
             .putString(KEY_ADB_DIAGNOSTICS, safeDetail)
             .putString(KEY_ADB_DIAGNOSTICS_HISTORY, history)
@@ -93,9 +159,15 @@ class BootDiagnostics(context: Context) {
             Log.i(LOG_TAG, "ADB_DIAG $line")
         }
         Log.i(LOG_TAG, "ADB_DIAGNOSTICS_END")
+        appendBootLog(
+            recordedAtMillis = now,
+            event = "ADB_DIAGNOSTICS",
+            detail = safeDetail,
+        )
     }
 
     fun snapshot(): BootDiagnosticsSnapshot = BootDiagnosticsSnapshot(
+        bootSequence = preferences.getLong(KEY_BOOT_SEQUENCE, 0L),
         bootReceivedAtMillis = preferences.getLong(KEY_BOOT_RECEIVED_AT, 0L),
         mainLaunchStatus = preferences.getString(
             KEY_MAIN_LAUNCH_STATUS,
@@ -113,14 +185,198 @@ class BootDiagnostics(context: Context) {
     )
 
     private fun updateMainLaunch(status: String, detail: String) {
+        val safeDetail = detail.take(MAX_DETAIL_LENGTH)
+        val now = System.currentTimeMillis()
         val saved = preferences.edit()
             .putString(KEY_MAIN_LAUNCH_STATUS, status)
-            .putString(KEY_MAIN_LAUNCH_DETAIL, detail.take(MAX_DETAIL_LENGTH))
-            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            .putString(KEY_MAIN_LAUNCH_DETAIL, safeDetail)
+            .putLong(KEY_UPDATED_AT, now)
             .commit()
         if (!saved) {
             Log.e(LOG_TAG, "Failed to persist recovery screen launch diagnostics")
         }
+        appendBootLog(
+            recordedAtMillis = now,
+            event = "MAIN_LAUNCH:$status",
+            detail = safeDetail,
+        )
+    }
+
+    private fun startBootLog(
+        bootSequence: Long,
+        bootReceivedAtMillis: Long,
+        detail: String,
+    ) {
+        if (!settings.saveRecentBootLogs) {
+            return
+        }
+        runCatching {
+            sharedBootLogStore().startBoot(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = bootReceivedAtMillis,
+                detail = detail,
+            )
+        }.onFailure { exception ->
+            logBootStorageFailure("start", exception)
+            stageBootLogStart(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                detail = detail,
+            )
+        }
+    }
+
+    private fun appendBootLog(
+        recordedAtMillis: Long,
+        event: String,
+        detail: String,
+    ) {
+        if (!settings.saveRecentBootLogs) {
+            return
+        }
+        val bootSequence = preferences.getLong(KEY_BOOT_SEQUENCE, 0L)
+        val bootReceivedAtMillis = preferences.getLong(KEY_BOOT_RECEIVED_AT, 0L)
+        if (bootSequence <= 0L) {
+            return
+        }
+        runCatching {
+            sharedBootLogStore().append(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = recordedAtMillis,
+                event = event,
+                detail = detail,
+            )
+        }.onFailure { exception ->
+            logBootStorageFailure("append", exception)
+            stageBootLogAppend(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = recordedAtMillis,
+                event = event,
+                detail = detail,
+            )
+        }
+    }
+
+    private fun stageBootLogStart(
+        bootSequence: Long,
+        bootReceivedAtMillis: Long,
+        detail: String,
+    ) {
+        runCatching {
+            BootLogStore(legacyBootLogDirectory).startBoot(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = bootReceivedAtMillis,
+                detail = detail,
+            )
+        }.onSuccess {
+            Log.w(LOG_TAG, "Shared storage unavailable; boot log staged privately")
+        }.onFailure { exception ->
+            Log.e(LOG_TAG, "Failed to stage boot log privately", exception)
+        }
+    }
+
+    private fun stageBootLogAppend(
+        bootSequence: Long,
+        bootReceivedAtMillis: Long,
+        recordedAtMillis: Long,
+        event: String,
+        detail: String,
+    ) {
+        runCatching {
+            BootLogStore(legacyBootLogDirectory).append(
+                bootSequence = bootSequence,
+                bootReceivedAtMillis = bootReceivedAtMillis,
+                recordedAtMillis = recordedAtMillis,
+                event = event,
+                detail = detail,
+            )
+        }.onSuccess {
+            Log.w(LOG_TAG, "Shared storage unavailable; boot log event staged privately")
+        }.onFailure { exception ->
+            Log.e(LOG_TAG, "Failed to stage boot log event privately", exception)
+        }
+    }
+
+    private fun latestSharedBootSequence(): Long = runCatching {
+        sharedBootLogStore().latestBootSequence()
+    }.onFailure { exception ->
+        logBootStorageFailure("read latest sequence", exception)
+    }.getOrDefault(0L)
+
+    private fun sharedBootLogStore(): BootLogStore {
+        val store = BootLogStore(
+            SharedBootLogStorage.requireDirectory(appContext),
+        )
+        val importResult = store.importFrom(legacyBootLogDirectory)
+        reconcileBootSequences(store, importResult)
+        return store
+    }
+
+    private fun reconcileBootSequences(
+        store: BootLogStore,
+        importResult: BootLogImportResult,
+    ) {
+        val currentSequence = preferences.getLong(KEY_BOOT_SEQUENCE, 0L)
+        var latestSequence = importResult.latestBootSequence
+        var migratedCurrentSequence = importResult.sequenceMappings[currentSequence]
+            ?: currentSequence
+        if (
+            currentSequence > 0L &&
+            !importResult.sequenceMappings.containsKey(currentSequence) &&
+            store.hasBootLog(currentSequence) &&
+            store.bootReceivedAtMillis(currentSequence) != preferences.getLong(
+                KEY_BOOT_RECEIVED_AT,
+                0L,
+            )
+        ) {
+            if (latestSequence == Long.MAX_VALUE) {
+                throw IOException("Boot log sequence is exhausted")
+            }
+            migratedCurrentSequence = latestSequence + 1L
+            latestSequence = migratedCurrentSequence
+        }
+        val lastAllocatedSequence = maxOf(
+            preferences.getLong(
+                KEY_LAST_ALLOCATED_BOOT_SEQUENCE,
+                currentSequence,
+            ),
+            migratedCurrentSequence,
+            latestSequence,
+        )
+        if (
+            migratedCurrentSequence == currentSequence &&
+            lastAllocatedSequence == preferences.getLong(
+                KEY_LAST_ALLOCATED_BOOT_SEQUENCE,
+                currentSequence,
+            )
+        ) {
+            return
+        }
+
+        val saved = preferences.edit()
+            .putLong(KEY_BOOT_SEQUENCE, migratedCurrentSequence)
+            .putLong(KEY_LAST_ALLOCATED_BOOT_SEQUENCE, lastAllocatedSequence)
+            .commit()
+        if (!saved) {
+            throw IOException("Failed to persist migrated boot log sequence")
+        }
+    }
+
+    private fun logBootStorageFailure(action: String, exception: Throwable) {
+        val storageState = runCatching {
+            SharedBootLogStorage.diagnosticSummary(appContext)
+        }.getOrElse { diagnosticFailure ->
+            "diagnostic unavailable: ${diagnosticFailure.toDiagnosticDetail()}"
+        }
+        Log.e(
+            LOG_TAG,
+            "Shared boot log $action failed; $storageState",
+            exception,
+        )
     }
 
     companion object {
@@ -147,6 +403,9 @@ class BootDiagnostics(context: Context) {
         const val STAGE_AUTO_RECOVERY_REBOOT = "AUTO_RECOVERY_REBOOT"
 
         private const val PREFERENCES_NAME = "boot_diagnostics"
+        private const val KEY_BOOT_SEQUENCE = "boot_sequence"
+        private const val KEY_LAST_ALLOCATED_BOOT_SEQUENCE =
+            "last_allocated_boot_sequence"
         private const val KEY_BOOT_RECEIVED_AT = "boot_received_at"
         private const val KEY_MAIN_LAUNCH_STATUS = "main_launch_status"
         private const val KEY_MAIN_LAUNCH_DETAIL = "main_launch_detail"
