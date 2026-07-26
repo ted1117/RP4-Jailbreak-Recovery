@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Root Recovery Helper</string>
-    <string name="main_title">Root Recovery Helper</string>
+    <string name="app_name">루팅 복구 도우미</string>
+    <string name="main_title">루팅 복구 도우미</string>
     <string name="root_checking">루트 권한을 확인하고 있습니다…</string>
     <string name="setup_complete">설정이 완료되었습니다.\n이 앱은 기기 부팅 후 루팅 상태를 자동으로 확인합니다.</string>
     <string name="root_required">루트 권한이 필요합니다.\nMagisk에서 슈퍼유저 권한을 허용해 주세요.</string>
